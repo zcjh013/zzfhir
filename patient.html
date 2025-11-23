@@ -3,489 +3,271 @@
 <head>
 <meta charset="utf-8">
 <title>經期觀測站 - 病人端</title>
-
-<!-- Chart.js -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-    body {
-        background: #f3e9dd;
-        font-family: "Arial", sans-serif;
-        color: #4b3f2f;
-        margin: 0;
-        padding: 20px;
-    }
+body { background:#f3e9dd; font-family:Arial; color:#4b3f2f; margin:0; padding:20px; }
+h2 { text-align:center; color:#6d4b3a; margin-bottom:10px; }
+#welcome { text-align:center; margin-bottom:20px; }
+.container { display:flex; gap:20px; flex-wrap:wrap; }
+.col { flex:1; min-width:280px; }
+.card { background:#fffaf3; padding:15px; border-radius:10px; box-shadow:0 3px 6px rgba(0,0,0,0.1); margin-bottom:20px; }
+.card h3 { margin-top:0; }
+label { font-weight:bold; }
+input, select, textarea { width:100%; padding:8px; margin:5px 0 10px; border-radius:6px; border:1px solid #d8c3a5; }
+textarea { height:60px; }
+button { width:100%; padding:12px; border:none; background:#c9a37c; color:white; border-radius:8px; margin-top:10px; }
+button:hover { background:#b08968; }
+#statusBox { background:#fff4e6; padding:12px; border-left:4px solid #d39f61; margin-top:10px; white-space:pre-line; }
 
-    h2 {
-        text-align: center;
-        color: #6d4b3a;
-        margin-bottom: 10px;
-        font-size: 26px;
-        letter-spacing: 2px;
-    }
-
-    #welcome {
-        text-align: center;
-        font-size: 18px;
-        color: #5c4839;
-        margin-bottom: 20px;
-    }
-
-    .card {
-        background: #fffaf3;
-        border-radius: 12px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0px 3px 6px rgba(0,0,0,0.15);
-        border-left: 5px solid #c19a6b;
-    }
-
-    .card h3 {
-        margin-top: 0;
-        color: #6d4b3a;
-        font-size: 20px;
-    }
-
-    label {
-        font-weight: bold;
-        color: #5c4839;
-        font-size: 15px;
-    }
-
-    input, select, textarea {
-        width: 100%;
-        padding: 10px;
-        border-radius: 6px;
-        border: 1px solid #d8c3a5;
-        margin-top: 6px;
-        margin-bottom: 12px;
-        background: #fff7ef;
-        color: #4b3f2f;
-    }
-
-    textarea {
-        height: 60px;
-    }
-
-    button {
-        width: 100%;
-        padding: 14px;
-        background: #c9a37c;
-        color: white;
-        font-size: 16px;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        margin-top: 10px;
-    }
-
-    button:hover {
-        background: #b08968;
-    }
-
-    #statusBox {
-        background: #fff4e6;
-        padding: 12px;
-        border-radius: 8px;
-        border-left: 4px solid #d39f61;
-        white-space: pre-line;
-        margin-top: 15px;
-    }
-
-    /* 日曆樣式 */
-    #calendarTable td {
-        border: 1px solid #e5d3c0;
-        height: 60px;
-        vertical-align: top;
-        background: #ffffff;
-        position: relative;
-        padding: 3px;
-    }
-
-    .period-day {
-        background: #ffe5e5 !important;
-    }
-
-    .flow-low { color:#8a6f5a; }
-    .flow-mid { color:#b05b3c; font-weight:bold; }
-    .flow-high { color:#d62828; font-weight:bold; }
-
-    .pain-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background:#b47f4e;
-        position:absolute;
-        bottom:4px;
-        right:4px;
-    }
+/* Calendar */
+#calendarTable td { border:1px solid #e5d3c0; height:60px; vertical-align:top; position:relative; padding:3px; }
+.period-day { background:#ffe5e5 !important; }
+.flow-low { color:#8a6f5a; }
+.flow-mid { color:#b05b3c; font-weight:bold; }
+.flow-high { color:#d62828; font-weight:bold; }
+.pain-dot { width:8px; height:8px; position:absolute; bottom:3px; right:3px; border-radius:50%; background:#b47f4e; }
 </style>
 </head>
 
 <body>
-
 <h2>經 期 觀 測 站</h2>
 <div id="welcome">載入中...</div>
 
-<!-- 生理期紀錄 -->
-<div class="card">
-    <h3>生理期記錄</h3>
+<div class="container">
+    <!-- 左側 -->
+    <div class="col">
+        <div class="card">
+            <h3>生理期記錄</h3>
+            <label>經期開始日</label>
+            <input type="date" id="startDate">
+            <label>經期結束日</label>
+            <input type="date" id="endDate">
+            <label>出血量</label>
+            <select id="flow"><option>少</option><option>中</option><option>多</option></select>
+            <label>疼痛程度（0～10）</label>
+            <input type="number" id="pain" min="0" max="10">
+        </div>
+    </div>
 
-    <label>經期開始日</label>
-    <input type="date" id="startDate">
+    <!-- 右側 -->
+    <div class="col">
+        <div class="card">
+            <h3>症狀 & 身心狀態</h3>
+            <label>其他症狀</label>
+            <textarea id="symptoms"></textarea>
 
-    <label>經期結束日</label>
-    <input type="date" id="endDate">
+            <label>心情</label>
+            <select id="mood">
+                <option>平靜</option><option>普通</option><option>難過</option>
+                <option>生氣</option><option>焦慮</option>
+            </select>
 
-    <label>出血量</label>
-    <select id="flow">
-        <option value="少">少</option>
-        <option value="中">中</option>
-        <option value="多">多</option>
-    </select>
+            <label>壓力指數（0～10）</label>
+            <input type="number" id="stress" min="0" max="10">
 
-    <label>疼痛程度（0 ～ 10）</label>
-    <input type="number" id="pain" min="0" max="10">
+            <label>睡眠品質</label>
+            <select id="sleep">
+                <option>好</option><option>普通</option><option>差</option>
+            </select>
+        </div>
+    </div>
 </div>
 
-<!-- 症狀 -->
-<div class="card">
-    <h3>其他症狀</h3>
-    <textarea id="symptoms" placeholder="例如：腹痛、疲倦、腹脹、頭痛、情緒不穩…"></textarea>
-</div>
-
-<!-- 心情、壓力、睡眠 -->
-<div class="card">
-    <h3>今日身心狀態</h3>
-
-    <label>心情</label>
-    <select id="mood">
-        <option value="平靜">🙂 平靜</option>
-        <option value="普通">😐 普通</option>
-        <option value="難過">😞 難過</option>
-        <option value="生氣">😡 生氣</option>
-        <option value="焦慮">😟 焦慮</option>
-    </select>
-
-    <label>壓力指數（0 ～ 10）</label>
-    <input type="number" id="stress" min="0" max="10">
-
-    <label>睡眠品質</label>
-    <select id="sleep">
-        <option value="好">好</option>
-        <option value="普通">普通</option>
-        <option value="差">差</option>
-    </select>
-</div>
-
-<!-- 上傳今日紀錄 -->
 <button onclick="submitAll()">送出今日紀錄</button>
-
-<!-- 隨機測試資料 -->
-<button onclick="generateRandomData()">產生測試資料（隨機）</button>
+<button onclick="generateCycleData()">產生 28 天週期測試資料</button>
 
 <div id="statusBox">尚未連線</div>
 
-<!-- 趨勢圖 -->
 <div class="card">
-    <h3>我的經期趨勢（最近三個月）</h3>
-    <button onclick="loadHistory()">載入我的歷史紀錄</button>
-    <canvas id="cycleChart" height="200"></canvas>
+    <h3>疼痛趨勢圖</h3>
+    <button onclick="loadHistory()">載入歷史資料</button>
+    <canvas id="cycleChart"></canvas>
 </div>
 
-<!-- 經期月曆 -->
 <div class="card">
     <h3>經期月曆</h3>
-
-    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between;">
         <button onclick="prevMonth()">⬅ 上個月</button>
-        <div id="calendarTitle" style="font-size:18px; font-weight:bold; color:#6d4b3a;"></div>
+        <div id="calendarTitle"></div>
         <button onclick="nextMonth()">下個月 ➡</button>
     </div>
-
-    <table id="calendarTable" style="width:100%; text-align:center; border-collapse:collapse;"></table>
+    <table id="calendarTable" style="width:100%; border-collapse:collapse;"></table>
 </div>
+
 <script>
-/* ================================
-   🔸 取得登入姓名
-================================ */
-const urlParams = new URLSearchParams(window.location.search);
-const userName = urlParams.get("name") || "訪客";
+// ===== 取得登入名稱 =====
+const userName = new URLSearchParams(location.search).get("name") || "訪客";
 document.getElementById("welcome").textContent = "歡迎，" + userName;
 
-/* ================================
-   🔸 FHIR 伺服器
-================================ */
+// ===== FHIR 伺服器 =====
 const server = "https://hapi.fhir.org/baseR4";
 let patientId = null;
 
-function showStatus(msg) {
-    document.getElementById("statusBox").textContent = msg;
-}
+function showStatus(msg){ document.getElementById("statusBox").textContent = msg; }
 
-/* ================================
-   🔸 查找 / 建立 Patient
-================================ */
-async function findOrCreatePatient() {
-    let res = await fetch(`${server}/Patient?name=${encodeURIComponent(userName)}`);
-    let data = await res.json();
+// ===== 找/建病人 =====
+async function findOrCreatePatient(){
+    let r = await fetch(`${server}/Patient?name=${userName}`);
+    let data = await r.json();
+    if(data.entry){ patientId = data.entry[0].resource.id; return patientId; }
 
-    if (data.entry && data.entry.length > 0) {
-        patientId = data.entry[0].resource.id;
-        return patientId;
-    }
-
-    let body = {
-        resourceType: "Patient",
-        name: [{ text: userName }],
-        gender: "female"
-    };
-
-    let createRes = await fetch(`${server}/Patient`, {
-        method: "POST",
-        headers: { "Content-Type": "application/fhir+json" },
-        body: JSON.stringify(body)
+    let res = await fetch(`${server}/Patient`,{
+        method:"POST",
+        headers:{ "Content-Type":"application/fhir+json" },
+        body:JSON.stringify({ resourceType:"Patient", name:[{text:userName}], gender:"female" })
     });
-
-    let created = await createRes.json();
+    let created = await res.json();
     patientId = created.id;
     return patientId;
 }
 
-/* ================================
-   🔸 上傳今日紀錄
-================================ */
-async function submitAll() {
-    showStatus("🔄 正在上傳資料…");
+// ===== 送出紀錄 =====
+async function submitAll(){
     await findOrCreatePatient();
-
     const today = new Date().toISOString();
-
-    const obs = [
-        { name: "經期開始日", obj: { valueDateTime: startDate.value }},
-        { name: "經期結束日", obj: { valueDateTime: endDate.value }},
-        { name: "出血量", obj: { valueString: flow.value }},
-        { name: "疼痛程度", obj: { valueQuantity: { value: Number(pain.value) }}},
-        { name: "其他症狀", obj: { valueString: symptoms.value }},
-        { name: "心情", obj: { valueString: mood.value }},
-        { name: "壓力指數", obj: { valueQuantity: { value: Number(stress.value) }}},
-        { name: "睡眠品質", obj: { valueString: sleep.value }},
+    const list = [
+        {name:"經期開始日", obj:{valueDateTime: startDate.value}},
+        {name:"經期結束日", obj:{valueDateTime: endDate.value}},
+        {name:"出血量", obj:{valueString: flow.value}},
+        {name:"疼痛程度", obj:{valueQuantity:{value:Number(pain.value)}}},
+        {name:"其他症狀", obj:{valueString: symptoms.value}},
+        {name:"心情", obj:{valueString: mood.value}},
+        {name:"壓力指數", obj:{valueQuantity:{value:Number(stress.value)}}},
+        {name:"睡眠品質", obj:{valueString: sleep.value}},
     ];
-
-    for (let item of obs) {
-        await fetch(`${server}/Observation`, {
-            method: "POST",
-            headers: { "Content-Type": "application/fhir+json" },
-            body: JSON.stringify({
-                resourceType: "Observation",
-                status: "final",
-                code: { text: item.name },
-                subject: { reference: `Patient/${patientId}` },
+    for(let o of list){
+        await fetch(`${server}/Observation`,{
+            method:"POST",
+            headers:{ "Content-Type":"application/fhir+json" },
+            body:JSON.stringify({
+                resourceType:"Observation",
+                status:"final",
+                code:{text:o.name},
+                subject:{reference:`Patient/${patientId}`},
                 effectiveDateTime: today,
-                ...item.obj
+                ...o.obj
             })
         });
     }
-
-    showStatus("🎉 今日紀錄已成功送出！");
+    showStatus("🎉 今日紀錄已送出！");
 }
 
-/* ================================
-   🔸 隨機產生 30~90 天資料
-================================ */
-async function generateRandomData() {
-    showStatus("🛠️ 正在產生測試資料…");
+// ===== 疼痛趨勢 =====
+let chart=null;
+async function loadHistory(){
+    await findOrCreatePatient();
+    let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&_sort=-date`);
+    let d=await r.json();
+    let labels=[], pain=[];
+    (d.entry||[]).forEach(e=>{
+        let o=e.resource;
+        if(o.code.text==="疼痛程度" && o.valueQuantity){
+            labels.push(o.effectiveDateTime.substring(0,10));
+            pain.push(o.valueQuantity.value);
+        }
+    });
+    const ctx=document.getElementById("cycleChart");
+    if(chart) chart.destroy();
+    chart=new Chart(ctx,{
+        type:"line",
+        data:{ labels:labels.reverse(), datasets:[{ label:"疼痛程度", data:pain.reverse(), borderColor:"#b47f4e" }] }
+    });
+    showStatus("📈 趨勢圖已更新");
+}
+
+// ===== 月曆 =====
+let currentMonth=new Date();
+function renderCalendar(){
+    const y=currentMonth.getFullYear();
+    const m=currentMonth.getMonth();
+    document.getElementById("calendarTitle").textContent=`${y} 年 ${m+1} 月`;
+    const first=new Date(y,m,1).getDay();
+    const days=new Date(y,m+1,0).getDate();
+    let html="<tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr><tr>";
+    for(let i=0;i<first;i++) html+="<td></td>";
+    for(let d=1;d<=days;d++){
+        const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        html+=`<td id="d${ds}"><div>${d}</div><div class="dayInfo"></div></td>`;
+        if((d+first)%7===0) html+="</tr><tr>";
+    }
+    html+="</tr>";
+    document.getElementById("calendarTable").innerHTML=html;
+}
+function prevMonth(){ currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); fillCal(); }
+function nextMonth(){ currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); fillCal(); }
+
+// ===== 填入月曆資料 =====
+async function fillCal(){
+    await findOrCreatePatient();
+    let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
+    let d=await r.json();
+    (d.entry||[]).forEach(e=>{
+        let o=e.resource, date=o.effectiveDateTime;
+        if(!date) return;
+        let s=date.substring(0,10);
+        let td=document.getElementById("d"+s);
+        if(!td) return;
+
+        if(o.code.text==="出血量"){
+            let cls = o.valueString==="少" ? "flow-low": o.valueString==="中" ? "flow-mid":"flow-high";
+            td.querySelector(".dayInfo").innerHTML+=`<div class="${cls}">🩸 ${o.valueString}</div>`;
+        }
+        if(o.code.text==="疼痛程度") td.innerHTML+=`<div class="pain-dot"></div>`;
+        if(o.code.text==="經期開始日" || o.code.text==="經期結束日") td.classList.add("period-day");
+    });
+}
+
+// ===== 28 天週期資料 =====
+async function generateCycleData(){
+    showStatus("🛠️ 產生 28 天週期資料中…");
     await findOrCreatePatient();
 
-    const days = Math.floor(Math.random() * 61) + 30;  
-    const today = new Date();
+    const today=new Date();
+    const cycle=28;
 
-    for (let i = 0; i < days; i++) {
-        let d = new Date(today);
-        d.setDate(d.getDate() - i);
-        let iso = d.toISOString();
+    for(let i=0;i<cycle;i++){
+        let d=new Date(today);
+        d.setDate(d.getDate()-i);
+        let iso=d.toISOString();
+        let day=cycle-i;
 
-        const painVal = Math.floor(Math.random() * 10);
-        const flowVal = ["少", "中", "多"][Math.floor(Math.random() * 3)];
-        const stressVal = Math.floor(Math.random() * 10);
-        const moodVal = ["平靜","普通","難過","生氣","焦慮"][Math.floor(Math.random()*5)];
+        let pain=0, flow="無", stress=0, mood="平靜";
 
-        const items = [
-            { name:"疼痛程度", obj:{ valueQuantity:{ value:painVal } }},
-            { name:"出血量", obj:{ valueString:flowVal }},
-            { name:"壓力指數", obj:{ valueQuantity:{ value:stressVal } }},
-            { name:"心情", obj:{ valueString:moodVal }},
+        if(day>=1 && day<=5){ flow=["少","中","多","中","少"][day-1]; pain=4+Math.floor(Math.random()*4); stress=2+Math.random()*4; }
+        else if(day>=6 && day<=14){ pain=Math.floor(Math.random()*3); }
+        else if(day>=15 && day<=17){ pain=1+Math.floor(Math.random()*3); }
+        else { pain=1+Math.floor(Math.random()*3); stress=3+Math.random()*4; }
+
+        const list=[
+            {name:"出血量", obj:{valueString:flow}},
+            {name:"疼痛程度", obj:{valueQuantity:{value:pain}}},
+            {name:"壓力指數", obj:{valueQuantity:{value:Math.floor(stress)}}},
+            {name:"心情", obj:{valueString:mood}},
         ];
 
-        for (let item of items) {
-            await fetch(`${server}/Observation`, {
-                method: "POST",
-                headers: { "Content-Type": "application/fhir+json" },
-                body: JSON.stringify({
+        for(let o of list){
+            await fetch(`${server}/Observation`,{
+                method:"POST",
+                headers:{ "Content-Type":"application/fhir+json" },
+                body:JSON.stringify({
                     resourceType:"Observation",
                     status:"final",
-                    code:{ text:item.name },
-                    subject:{ reference:`Patient/${patientId}` },
-                    effectiveDateTime:iso,
-                    ...item.obj
+                    code:{text:o.name},
+                    subject:{reference:`Patient/${patientId}`},
+                    effectiveDateTime: iso,
+                    ...o.obj
                 })
             });
         }
     }
 
-    showStatus(`🎉 已成功產生 ${days} 天的測試資料！`);
+    showStatus("🎉 已完成 28 天週期資料！");
 }
 
-/* ================================
-   🔸 載入疼痛趨勢圖
-================================ */
-async function loadHistory() {
-    if (!patientId) await findOrCreatePatient();
-
-    showStatus("📊 正在載入資料…");
-
-    let res = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=300&_sort=-date`);
-    let data = await res.json();
-
-    const labels = [];
-    const pains = [];
-
-    (data.entry || []).forEach(e => {
-        let o = e.resource;
-        if (o.code.text === "疼痛程度" && o.valueQuantity) {
-            pains.push(o.valueQuantity.value);
-            labels.push(o.effectiveDateTime || "");
-        }
-    });
-
-    drawChart(labels.reverse(), pains.reverse());
-    showStatus("📈 趨勢圖已更新！");
-}
-
-let chart = null;
-
-function drawChart(labels, data) {
-    const ctx = document.getElementById("cycleChart");
-
-    if (chart) chart.destroy();
-
-    chart = new Chart(ctx, {
-        type:"line",
-        data:{
-            labels,
-            datasets:[{
-                label:"疼痛程度趨勢",
-                data,
-                borderColor:"#b47f4e",
-                backgroundColor:"rgba(180,127,78,0.25)",
-                borderWidth:3
-            }]
-        }
-    });
-}
-
-/* ================================
-   🔸 月曆（UI）
-================================ */
-let currentMonth = new Date();
-
-function renderCalendar() {
-    const y = currentMonth.getFullYear();
-    const m = currentMonth.getMonth();
-
-    document.getElementById("calendarTitle").textContent = `${y} 年 ${m+1} 月`;
-
-    const first = new Date(y, m, 1);
-    const start = first.getDay();
-    const days = new Date(y, m+1, 0).getDate();
-
-    let html = `
-      <tr style="font-weight:bold; color:#5c4839;">
-        <td>日</td><td>一</td><td>二</td><td>三</td>
-        <td>四</td><td>五</td><td>六</td>
-      </tr><tr>
-    `;
-
-    for (let i = 0; i < start; i++) html += `<td></td>`;
-
-    for (let d = 1; d <= days; d++) {
-        let ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-
-        html += `
-          <td id="d${ds}">
-            <div style="font-size:14px;">${d}</div>
-            <div class="dayInfo" style="font-size:12px;"></div>
-          </td>
-        `;
-
-        if ((d+start) % 7 === 0) html += `</tr><tr>`;
-    }
-
-    html += "</tr>";
-    document.getElementById("calendarTable").innerHTML = html;
-}
-
-function prevMonth(){
-    currentMonth.setMonth(currentMonth.getMonth() - 1);
-    renderCalendar();
-    fillCalendarData();
-}
-
-function nextMonth(){
-    currentMonth.setMonth(currentMonth.getMonth() + 1);
-    renderCalendar();
-    fillCalendarData();
-}
-
-/* ================================
-   🔸 月曆填入 FHIR 資料
-================================ */
-async function fillCalendarData() {
-    if (!patientId) return;
-
-    let res = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
-    let data = await res.json();
-
-    (data.entry || []).forEach(e => {
-        let o = e.resource;
-        let date = o.effectiveDateTime;
-        if (!date) return;
-
-        const short = date.substring(0,10);
-        const td = document.getElementById("d" + short);
-        if (!td) return;
-
-        /* 出血量 */
-        if (o.code.text === "出血量" && o.valueString) {
-            let cls = "flow-low";
-            if (o.valueString === "中") cls = "flow-mid";
-            if (o.valueString === "多") cls = "flow-high";
-
-            td.querySelector(".dayInfo").innerHTML +=
-                `<div class="${cls}">🩸 ${o.valueString}</div>`;
-        }
-
-        /* 疼痛程度 → 點 */
-        if (o.code.text === "疼痛程度" && o.valueQuantity) {
-            td.innerHTML += `<div class="pain-dot"></div>`;
-        }
-
-        /* 經期關鍵日 */
-        if (o.code.text === "經期開始日" || o.code.text === "經期結束日") {
-            td.classList.add("period-day");
-        }
-    });
-}
-
-/* ================================
-   🔸 初始化
-================================ */
 renderCalendar();
-
-findOrCreatePatient().then(id => {
-    patientId = id;
-    fillCalendarData();
-});
+findOrCreatePatient().then(fillCal);
 </script>
 
 </body>
