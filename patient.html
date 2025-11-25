@@ -227,16 +227,82 @@
     /*==============================
       送出今日紀錄（含：傳送中提示）
     ==============================*/
-    async function submitAll() {
+    
+async function submitAll() {
 
-        showStatus("📤 資料傳送中…");
+    document.getElementById("loadingOverlay").style.display="flex";
+    await findOrCreatePatient();
+    let today = new Date().toISOString().substring(0,10);
 
-        await findOrCreatePatient();
-        let today = new Date().toISOString().substring(0, 10);
+    showStatus("📤 傳送中…");
 
-        /* 刪除今日舊資料（避免重複） */
-        let r = await fetch(
-            `${server}/Observation?subject=Patient/${patientId}&date=${today}`
+    // 先抓今日舊資料
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&date=${today}`);
+    let d = await r.json();
+
+    // 建立 Bundle entries
+    let entries = [];
+
+    // DELETE 舊資料
+    if (d.entry) {
+        for (let e of d.entry) {
+            entries.push({
+                request: {
+                    method: "DELETE",
+                    url: `Observation/${e.resource.id}`
+                }
+            });
+        }
+    }
+
+    // 新資料列表
+    let list = [
+        { code: "經期開始日", val: { valueDateTime: startDate.value } },
+        { code: "經期結束日", val: { valueDateTime: endDate.value } },
+        { code: "出血量", val: { valueString: flow.value } },
+        { code: "疼痛程度", val: { valueQuantity: { value: Number(pain.value) } } },
+        { code: "其他症狀", val: { valueString: symptoms.value } },
+        { code: "心情", val: { valueString: mood.value } },
+        { code: "壓力指數", val: { valueQuantity: { value: Number(stress.value) } } },
+        { code: "睡眠品質", val: { valueString: sleep.value } }
+    ];
+
+    // POST 新資料
+    for (let o of list) {
+        entries.push({
+            resource: {
+                resourceType: "Observation",
+                status: "final",
+                code: { text: o.code },
+                subject: { reference: `Patient/${patientId}` },
+                effectiveDateTime: today,
+                ...o.val
+            },
+            request: {
+                method: "POST",
+                url: "Observation"
+            }
+        });
+    }
+
+    // 一次送出
+    let bundle = {
+        resourceType: "Bundle",
+        type: "transaction",
+        entry: entries
+    };
+
+    await fetch(`${server}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/fhir+json" },
+        body: JSON.stringify(bundle)
+    });
+
+    showStatus("🎉 今日資料已更新！");
+    renderCalendar();
+    document.getElementById("loadingOverlay").style.display="none";
+}
+/Observation?subject=Patient/${patientId}&date=${today}`
         );
         let d = await r.json();
 
@@ -451,23 +517,76 @@
     /*==============================
       測試範例：產生半年資料（每月 25 號）
     ==============================*/
-    async function generateHalfYear() {
+    
+async function generateHalfYear() {
+    document.getElementById("loadingOverlay").style.display="flex";
+    await findOrCreatePatient();
+    showStatus("⏳ 產生半年資料中…");
 
-        await findOrCreatePatient();
-        showStatus("⏳ 產生半年資料中…");
+    let today = new Date();
+    let startYear = today.getFullYear();
+    let startMonth = today.getMonth() - 5;
+    if (startMonth < 0) { startYear -= 1; startMonth += 12; }
 
-        let tasks = [];
-        let today = new Date();
+    let entries = [];
+    for (let m = 0; m < 6; m++) {
+        let d = new Date(startYear, startMonth + m, 25);
+        let ds = d.toISOString();
 
-        let startYear = today.getFullYear();
-        let startMonth = today.getMonth() - 5;
+        let pain = Math.floor(Math.random() * 10);
+        let flow = ["少","中","多"][Math.floor(Math.random()*3)];
+        let stress = Math.floor(Math.random() * 10);
+        let sleep = ["好","普通","差"][Math.floor(Math.random()*3)];
+        let mood = ["平靜","普通","難過","生氣","焦慮"][Math.floor(Math.random()*5)];
 
-        if (startMonth < 0) {
-            startYear -= 1;
-            startMonth += 12;
+        let list = [
+            { code: "出血量", val: { valueString: flow } },
+            { code: "疼痛程度", val: { valueQuantity: { value: pain } } },
+            { code: "壓力指數", val: { valueQuantity: { value: stress } } },
+            { code: "睡眠品質", val: { valueString: sleep } },
+            { code: "心情", val: { valueString: mood } }
+        ];
+
+        for (let o of list) {
+            entries.push({
+                resource: {
+                    resourceType: "Observation",
+                    status: "final",
+                    code: { text: o.code },
+                    subject: { reference: `Patient/${patientId}` },
+                    effectiveDateTime: ds,
+                    ...o.val
+                }
+            });
         }
+    }
 
-        for (let m = 0; m < 6; m++) {
+    // Build Bundle
+    let bundle = {
+        resourceType: "Bundle",
+        type: "transaction",
+        entry: entries.map(e => ({
+            resource: e.resource,
+            request: {
+                method: "POST",
+                url: "Observation"
+            }
+        }))
+    };
+
+    // Send Bundle
+    await fetch(`${server}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/fhir+json" },
+        body: JSON.stringify(bundle)
+    });
+
+    showStatus("🎉 半年資料已完成！");
+    await loadMonthlyPain();
+    renderCalendar();
+    document.getElementById("loadingOverlay").style.display="none";
+}
+for (let m = 0; m < 6; m++) {
 
             let d = new Date(startYear, startMonth + m, 25);
             let ds = d.toISOString();
