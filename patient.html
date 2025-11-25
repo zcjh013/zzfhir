@@ -3,7 +3,7 @@
 
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站 - 病人端（方案C＋趨勢圖修正版）</title>
+<title>經期觀測站 - 病人端（最終完整版：方案C＋趨勢圖最大值）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -83,7 +83,7 @@
 
 <body>
 
-<h2>經 期 觀 測 站（方案 C 最終版＋趨勢圖修正版）</h2>
+<h2>經 期 觀 測 站（最終完整版）</h2>
 <div id="welcome">資料讀取中…</div>
 
 <div class="row">
@@ -146,7 +146,7 @@
 <div id="statusBox" class="card">資料讀取中…</div>
 
 <div class="card">
-    <h3>月疼痛趨勢（自動合併 JSON＋一般資料）</h3>
+    <h3>月疼痛趨勢（每月最大疼痛值）</h3>
     <canvas id="painChart"></canvas>
 </div>
 
@@ -159,7 +159,6 @@
     </div>
     <table id="calendarTable" style="width:100%;border-collapse:collapse;"></table>
 </div>
-
 <!-- ============================= -->
 <!--           主程式開始          -->
 <!-- ============================= -->
@@ -303,9 +302,8 @@ function renderCalendar(){
 
 function prevMonth(){ currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); }
 function nextMonth(){ currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); }
-
 /*==============================
-  填入月曆資料
+  填入月曆資料 fillCal()
 ===============================*/
 async function fillCal(){
 
@@ -355,7 +353,8 @@ async function fillCal(){
 }
 
 /*==============================
-  趨勢圖（支援 JSON 半年資料）
+  趨勢圖 loadMonthlyPain()
+  —（方案 A：每月最大疼痛值）
 ===============================*/
 let painChart=null;
 
@@ -377,23 +376,28 @@ async function loadMonthlyPain(){
 
     let dataMap={};
 
-    /* 一般資料 */
+    /* 一般資料 → 取最大值 */
     (d1.entry||[]).forEach(e=>{
         let o=e.resource;
         if(!o.valueQuantity) return;
+
         let month=o.effectiveDateTime.substring(0,7);
-        if(!dataMap[month]) dataMap[month]=o.valueQuantity.value;
+        let pain=o.valueQuantity.value;
+
+        if(!dataMap[month] || pain > dataMap[month])
+            dataMap[month]=pain;
     });
 
-    /* JSON 半年資料 */
+    /* JSON 半年資料 → 取最大值 */
     (d2.entry||[]).forEach(e=>{
-        let arr = [];
-        try { arr = JSON.parse(e.resource.valueString); }
-        catch {}
+        let arr=[];
+        try{ arr=JSON.parse(e.resource.valueString); }catch{}
 
         arr.forEach(item=>{
             let m = item.date.substring(0,7);
-            if(!dataMap[m]) dataMap[m]=item.pain;
+            let p = item.pain;
+            if(!dataMap[m] || p > dataMap[m])
+                dataMap[m]=p;
         });
     });
 
@@ -408,7 +412,7 @@ async function loadMonthlyPain(){
         data:{
             labels,
             datasets:[{
-                label:"每月疼痛程度",
+                label:"每月最大疼痛程度",
                 data:values,
                 borderColor:"#b47f4e",
                 borderWidth:3,
@@ -417,9 +421,9 @@ async function loadMonthlyPain(){
         }
     });
 }
-
 /*==============================
-  半年資料（方案 C：一筆 Observation）
+  半年資料（方案 C：一筆 JSON）
+  ＋ 每筆 pain=3~8（避免 0）
 ===============================*/
 async function generateHalfYear(){
 
@@ -441,7 +445,7 @@ async function generateHalfYear(){
         arr.push({
             date:ds,
             flow:["少","中","多"][Math.floor(Math.random()*3)],
-            pain:Math.floor(Math.random()*10),
+            pain:Math.floor(Math.random()*6)+3,   // ⭐固定 3~8
             stress:Math.floor(Math.random()*10),
             sleep:["好","普通","差"][Math.floor(Math.random()*3)],
             mood:["平靜","普通","難過","生氣","焦慮"][Math.floor(Math.random()*5)]
