@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>經期觀測站 - 病人端（最終完整版）</title>
+    <title>經期觀測站 - 病人端（最終完整版 / 方案 C）</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Chart.js -->
@@ -108,7 +108,7 @@
 </head>
 
 <body>
-    <h2>經 期 觀 測 站（最終完整版）</h2>
+    <h2>經 期 觀 測 站（方案 C / 最終完整版）</h2>
     <div id="welcome">資料讀取中…</div>
 
     <div class="row">
@@ -166,7 +166,7 @@
     </div>
 
     <button onclick="submitAll()">送出今日紀錄</button>
-    <button onclick="generateHalfYear()">測試範例</button>
+    <button onclick="generateHalfYear()">測試範例（方案C：一筆資料）</button>
 
     <div id="statusBox" class="card">資料讀取中…</div>
 
@@ -184,7 +184,6 @@
         </div>
         <table id="calendarTable" style="width:100%;border-collapse:collapse;"></table>
     </div>
-
 <!-- ============================= -->
 <!--       主程式 Script 開始       -->
 <!-- ============================= -->
@@ -268,7 +267,7 @@ async function submitAll() {
         { code: "睡眠品質", val: { valueString: sleep.value } }
     ];
 
-    // POST 新資料
+    // POST 新資料（Bundle entry）
     for (let o of list) {
         entries.push({
             resource: {
@@ -348,10 +347,9 @@ function nextMonth() {
     currentMonth.setMonth(currentMonth.getMonth() + 1);
     renderCalendar();
 }
-
-/*==============================
-  讀取資料 → 填入月曆
-===============================*/
+<!-- ============================= -->
+<!--   讀取資料 → 填入月曆 fillCal()  -->
+<!-- ============================= -->
 async function fillCal() {
 
     await findOrCreatePatient();
@@ -381,7 +379,6 @@ async function fillCal() {
             map[ds].pain = o.valueQuantity?.value;
     });
 
-    // 經期塗色
     if (start && end) {
         let sd = new Date(start),
             ed = new Date(end);
@@ -395,7 +392,6 @@ async function fillCal() {
         }
     }
 
-    // 出血量 / 疼痛
     for (let ds in map) {
 
         let cell = document.getElementById("d" + ds);
@@ -418,9 +414,9 @@ async function fillCal() {
     }
 }
 
-/*==============================
-  每月疼痛趨勢圖
-===============================*/
+<!-- ============================= -->
+<!--      趨勢圖 loadMonthlyPain    -->
+<!-- ============================= -->
 let painChart = null;
 
 async function loadMonthlyPain() {
@@ -466,9 +462,9 @@ async function loadMonthlyPain() {
     });
 }
 
-/*==============================
-  半年資料（Bundle）
-===============================*/
+<!-- ============================= -->
+<!--    方案 C：半年資料 → 一筆 Observation(JSON) -->
+<!-- ============================= -->
 async function generateHalfYear() {
 
     document.getElementById("loadingOverlay").style.display = "flex";
@@ -476,71 +472,53 @@ async function generateHalfYear() {
     showStatus("⏳ 產生半年資料中…");
 
     let today = new Date();
+
     let startYear = today.getFullYear();
     let startMonth = today.getMonth() - 5;
     if (startMonth < 0) { startYear -= 1; startMonth += 12; }
 
-    let entries = [];
+    let months = [];
 
     for (let m = 0; m < 6; m++) {
+
         let d = new Date(startYear, startMonth + m, 25);
         let ds = d.toISOString();
 
-        let pain = Math.floor(Math.random() * 10);
-        let flow = ["少","中","多"][Math.floor(Math.random()*3)];
-        let stress = Math.floor(Math.random() * 10);
-        let sleep = ["好","普通","差"][Math.floor(Math.random()*3)];
-        let mood = ["平靜","普通","難過","生氣","焦慮"][Math.floor(Math.random()*5)];
-
-        let list = [
-            { code: "出血量", val: { valueString: flow } },
-            { code: "疼痛程度", val: { valueQuantity: { value: pain } } },
-            { code: "壓力指數", val: { valueQuantity: { value: stress } } },
-            { code: "睡眠品質", val: { valueString: sleep } },
-            { code: "心情", val: { valueString: mood } }
-        ];
-
-        for (let o of list) {
-            entries.push({
-                resource: {
-                    resourceType: "Observation",
-                    status: "final",
-                    code: { text: o.code },
-                    subject: { reference: `Patient/${patientId}` },
-                    effectiveDateTime: ds,
-                    ...o.val
-                }
-            });
-        }
+        months.push({
+            date: ds,
+            flow: ["少","中","多"][Math.floor(Math.random()*3)],
+            pain: Math.floor(Math.random() * 10),
+            stress: Math.floor(Math.random()*10),
+            sleep: ["好","普通","差"][Math.floor(Math.random()*3)],
+            mood: ["平靜","普通","難過","生氣","焦慮"][Math.floor(Math.random()*5)]
+        });
     }
 
-    let bundle = {
-        resourceType: "Bundle",
-        type: "transaction",
-        entry: entries.map(e => ({
-            resource: e.resource,
-            request: {
-                method: "POST",
-                url: "Observation"
-            }
-        }))
+    // 儲存為一筆 Observation
+    let body = {
+        resourceType: "Observation",
+        status: "final",
+        code: { text: "半年資料(JSON)" },
+        subject: { reference: `Patient/${patientId}` },
+        effectiveDateTime: new Date().toISOString(),
+        valueString: JSON.stringify(months)
     };
 
-    await fetch(`${server}`, {
+    await fetch(`${server}/Observation`, {
         method: "POST",
         headers: { "Content-Type": "application/fhir+json" },
-        body: JSON.stringify(bundle)
+        body: JSON.stringify(body)
     });
 
-    showStatus("🎉 半年資料已完成！");
+    showStatus("🎉 半年資料已完成！（方案C）");
     await loadMonthlyPain();
     renderCalendar();
     document.getElementById("loadingOverlay").style.display = "none";
 }
 
-/*==============================
-  自動載入
-===============================*/
+<!-- ============================= -->
+<!--      自動載入 autoLoad()       -->
+<!-- ============================= -->
 async function autoLoad() {
     showStatus("資料讀取中…");
 
@@ -553,7 +531,6 @@ async function autoLoad() {
     document.getElementById("loadingOverlay").style.display = "none";
 }
 
-/* 自動啟動 */
 autoLoad();
 </script>
 
