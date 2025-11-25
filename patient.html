@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站 - Firely 最終完整版</title>
+<title>經期觀測站 - HAPI 最終完整版</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -83,7 +83,7 @@ button {
 
 <body>
 
-<h2>經 期 觀 測 站（Firely 最終完整版）</h2>
+<h2>經 期 觀 測 站（HAPI 最終完整版）</h2>
 <div id="welcome">資料讀取中…</div>
 
 <div class="row">
@@ -156,12 +156,13 @@ button {
         <div id="calendarTitle"></div>
         <button onclick="nextMonth()">下個月 ➡</button>
     </div>
-
     <table id="calendarTable" style="width:100%;border-collapse:collapse;"></table>
 </div>
 
 <script>
-const server = "https://server.fire.ly/r4";
+// === ★★ HAPI FHIR 伺服器（無 CORS 問題）★★ ===
+const server = "https://hapi.fhir.org/baseR4";
+
 const userName = new URLSearchParams(location.search).get("name") || "訪客";
 document.getElementById("welcome").textContent =
     "歡迎，" + userName + "（資料讀取中…）";
@@ -195,20 +196,7 @@ async function findOrCreatePatient() {
 }
 
 /* ==============================
-   Firely 必須的 Observation.category
-================================= */
-function obsCategory() {
-    return [{
-        coding: [{
-            system: "http://terminology.hl7.org/CodeSystem/observation-category",
-            code: "vital-signs",
-            display: "Vital Signs"
-        }]
-    }];
-}
-
-/* ==============================
-   Observation 的 code
+   Observation.code
 ================================= */
 function obsCode(name) {
     return {
@@ -218,14 +206,14 @@ function obsCode(name) {
 }
 
 /* ==============================
-   更新狀態文字
+   狀態顯示
 ================================= */
 function showStatus(t) {
     document.getElementById("statusBox").textContent = t;
 }
 
 /* ==============================
-   送出今日紀錄（Bundle）
+   今日紀錄（Bundle）
 ================================= */
 async function submitAll() {
 
@@ -235,7 +223,7 @@ async function submitAll() {
 
     showStatus("📤 傳送中…");
 
-    // 找今日舊資料 → 刪除
+    // 找今日舊資料 → DELETE
     let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&date=${today}`);
     let d = await r.json();
     let entries = [];
@@ -260,13 +248,11 @@ async function submitAll() {
         { name: "睡眠品質", val: { valueString: sleep.value }}
     ];
 
-    // Bundle POST
     list.forEach(o => {
         entries.push({
             resource: {
                 resourceType: "Observation",
                 status: "final",
-                category: obsCategory(),
                 code: obsCode(o.name),
                 subject: { reference: `Patient/${patientId}` },
                 effectiveDateTime: today,
@@ -292,7 +278,7 @@ async function submitAll() {
 }
 
 /* ==============================
-   月曆系統
+   月曆（renderCalendar）
 ================================= */
 let currentMonth = new Date();
 
@@ -320,6 +306,7 @@ function renderCalendar() {
 
     fillCal();
 }
+
 function prevMonth() {
     currentMonth.setMonth(currentMonth.getMonth() - 1);
     renderCalendar();
@@ -329,7 +316,6 @@ function nextMonth() {
     currentMonth.setMonth(currentMonth.getMonth() + 1);
     renderCalendar();
 }
-
 /* ==============================
    填入月曆資料 fillCal()
 ================================= */
@@ -355,6 +341,7 @@ async function fillCal() {
         if (o.code.text === "疼痛程度") map[ds].pain = o.valueQuantity?.value;
     });
 
+    // 經期塗色
     if (start && end) {
         let sd = new Date(start), ed = new Date(end);
         for (let dt = new Date(sd); dt <= ed; dt.setDate(dt.getDate() + 1)) {
@@ -364,6 +351,7 @@ async function fillCal() {
         }
     }
 
+    // 症狀顯示
     for (let ds in map) {
         let cell = document.getElementById("d" + ds);
         if (!cell) continue;
@@ -380,7 +368,6 @@ async function fillCal() {
 
 /* ==============================
    趨勢圖 loadMonthlyPain()
-   — 每月最大疼痛值
 ================================= */
 let painChart = null;
 
@@ -395,6 +382,7 @@ async function loadMonthlyPain() {
 
     let dataMap = {};
 
+    // 日資料
     (d1.entry || []).forEach(e => {
         let o = e.resource;
         if (!o.valueQuantity) return;
@@ -405,6 +393,7 @@ async function loadMonthlyPain() {
         if (!dataMap[m] || p > dataMap[m]) dataMap[m] = p;
     });
 
+    // 半年 JSON 資料
     (d2.entry || []).forEach(e => {
         let arr = [];
         try { arr = JSON.parse(e.resource.valueString); } catch {}
@@ -439,8 +428,7 @@ async function loadMonthlyPain() {
 }
 
 /* ==============================
-   產生半年資料（方案C，一筆 JSON）
-   Firely + category
+   產生半年資料（方案 C）
 ================================= */
 async function generateHalfYear() {
 
@@ -480,7 +468,6 @@ async function generateHalfYear() {
         body: JSON.stringify({
             resourceType: "Observation",
             status: "final",
-            category: obsCategory(),
             code: obsCode("半年資料(JSON)"),
             subject: { reference: `Patient/${patientId}` },
             effectiveDateTime: new Date().toISOString(),
