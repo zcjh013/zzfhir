@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站 - 趨勢分析版（FlowText 標示版）</title>
+<title>經期觀測站 - 趨勢析版（FlowText 月列版）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -69,10 +69,15 @@ th,td {border:1px solid #c9b8a4;padding:6px;text-align:left;}
 <div id="tableBox"></div>
 </div>
 
-<!-- ====================== 趨勢圖 ====================== -->
+<!-- ====================== 趨勢圖區 ====================== -->
 <div class="card">
 <h3>一年趨勢圖（出血量 + 疼痛）</h3>
 <div id="cycleInfo">週期間隔：尚無資料</div>
+
+<!-- ⭐ 新增：月份 + 出血量 列 -->
+<div id="monthRow" style="margin-top:6px;color:#5a4633;font-size:15px;"></div>
+<div id="flowRow" style="margin-top:4px;color:#5a4633;font-size:15px;"></div>
+
 <canvas id="trendChart" height="120"></canvas>
 </div>
 
@@ -159,7 +164,7 @@ async function submitAll(){
 }
 
 // ==================================================
-// 查詢
+// 查詢（含月份列 + 出血列）
 // ==================================================
 async function queryData(){
     document.getElementById("queryStatus").textContent="查詢中…";
@@ -205,6 +210,7 @@ async function queryData(){
     window.painData=months.map(m=>painMap[m]||null);
     window.monthLabels=months;
 
+    // ======= 週期間隔 =======
     cycleStart.sort();
     if(cycleStart.length>1){
         let ints=[];
@@ -217,12 +223,28 @@ async function queryData(){
         document.getElementById("cycleInfo").textContent="週期間隔：尚無資料";
     }
 
+    // ======= ⭐ 顯示月份列 =======
+    let monthLabelsDisplay = window.monthLabels
+        .map(m => Number(m.substring(5)))   // "01"→1
+        .join("   ");
+
+    document.getElementById("monthRow").textContent =
+        "月份：  " + monthLabelsDisplay;
+
+    // ======= ⭐ 顯示出血量列 =======
+    let flowDisplay = window.flowData
+        .map(v => v===1?"少":v===2?"中":v===3?"多":"-")
+        .join("   ");
+
+    document.getElementById("flowRow").textContent =
+        "出血：  " + flowDisplay;
+
     drawTrendChart();
     document.getElementById("queryStatus").textContent="查詢完成";
 }
 
 // ==================================================
-// 趨勢圖（使用 dataset labels 直接標字）
+// 趨勢圖（保持不動）
 // ==================================================
 let trendChartRef=null;
 
@@ -230,12 +252,6 @@ function drawTrendChart(){
 
     const ctx=document.getElementById("trendChart").getContext("2d");
     if(trendChartRef) trendChartRef.destroy();
-
-    // 出血量字串
-    const flowMap={1:"少",2:"中",3:"多"};
-
-    // 為疼痛 dataset 建立 tooltip 行內標籤
-    const flowLabels = window.flowData.map(v => v ? flowMap[v] : "");
 
     trendChartRef=new Chart(ctx,{
         type:"line",
@@ -256,8 +272,7 @@ function drawTrendChart(){
                     borderWidth:3,
                     tension:0.3,
                     pointRadius:5,
-                    pointBackgroundColor:"#c94c4c",
-                    datalabels:false
+                    pointBackgroundColor:"#c94c4c"
                 }
             ]
         },
@@ -267,54 +282,14 @@ function drawTrendChart(){
                     callbacks:{
                         label:function(ctx){
                             let pain = ctx.raw ?? "";
-                            let flow = flowLabels[ctx.dataIndex];
-                            return `疼痛:${pain}  出血:${flow}`;
+                            let flow = window.flowData[ctx.dataIndex];
+                            let flowText = flow===1?"少":flow===2?"中":flow===3?"多":"-";
+                            return `疼痛:${pain}  出血:${flowText}`;
                         }
                     }
                 }
             }
         }
-    });
-
-    // ⭐⭐ → 在所有點旁邊直接加 DOM 文字，不再用 plugin
-    setTimeout(()=>{
-        addFlowDOMLabels();
-    },10);
-}
-
-// ==================================================
-// ⭐⭐ DOM-based 標示：100% 保證顯示（最穩定）
-// ==================================================
-function addFlowDOMLabels(){
-    // 清除舊的
-    document.querySelectorAll(".flowLabel").forEach(n=>n.remove());
-
-    const canvas=document.getElementById("trendChart");
-    const rect=canvas.getBoundingClientRect();
-
-    const flowMap={1:"少",2:"中",3:"多"};
-
-    window.painData.forEach((p,i)=>{
-        let f=window.flowData[i];
-        if(!p || !f) return;
-        let label=flowMap[f];
-
-        const meta = trendChartRef.getDatasetMeta(1).data[i];
-        if(!meta) return;
-
-        let x=meta.x + rect.left + window.scrollX;
-        let y=meta.y + rect.top + window.scrollY;
-
-        let div=document.createElement("div");
-        div.className="flowLabel";
-        div.style.position="absolute";
-        div.style.left = (x+10)+"px";
-        div.style.top  = (y-20)+"px";
-        div.style.color="#5a4633";
-        div.style.fontSize="12px";
-        div.style.pointerEvents="none";
-        div.textContent=label;
-        document.body.appendChild(div);
     });
 }
 </script>
