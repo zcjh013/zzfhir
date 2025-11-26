@@ -156,11 +156,9 @@ document.getElementById("welcome").textContent = "歡迎，" + userName;
 
 let patientId = null;
 
-// ====================== 建立/取得 PATIENT ======================
 async function findOrCreatePatient() {
     let r = await fetch(`${server}/Patient?name=${encodeURIComponent(userName)}`);
     let d = await r.json();
-
     if (d.entry) {
         patientId = d.entry[0].resource.id;
         return patientId;
@@ -336,6 +334,7 @@ async function queryData() {
     document.getElementById("queryStatus").textContent = "查詢完成";  // ⭐新增
 }
 </script>
+
 <script>
 let trendChartRef=null;
 
@@ -345,6 +344,35 @@ function drawTrendChart(){
 
     if(trendChartRef) trendChartRef.destroy();
 
+    // ⭐⭐ 轉換出血量文字
+    const flowTextMap = {1:"少", 2:"中", 3:"多"};
+
+    // ⭐⭐ 自訂 Plugin：在疼痛點旁顯示出血量文字
+    const flowLabelPlugin = {
+        id: "flowLabelPlugin",
+        afterDatasetsDraw(chart,args,pluginOptions){
+            const {ctx} = chart;
+
+            window.painData.forEach((pain, index)=>{
+                let flowVal = window.flowData[index];
+                if (pain == null || flowVal == null) return;
+
+                let meta = chart.getDatasetMeta(1); // 疼痛 dataset 在第二條
+                let point = meta.data[index];
+                if (!point) return;
+
+                let x = point.x + 8; // 右側偏移
+                let y = point.y - 8; // 上方偏移
+
+                ctx.save();
+                ctx.fillStyle = "#5a4633";
+                ctx.font = "12px Arial";
+                ctx.fillText(flowTextMap[flowVal], x, y);
+                ctx.restore();
+            });
+        }
+    };
+
     trendChartRef=new Chart(ctx,{
         type:"line",
         data:{
@@ -353,10 +381,8 @@ function drawTrendChart(){
                 {
                     label:"出血量（1=少, 2=中, 3=多）",
                     data:window.flowData,
-                    borderColor:"#d7893b",
-                    backgroundColor:"rgba(215,137,59,0.2)",
-                    borderWidth:3,
-                    tension:0.3
+                    borderColor:"rgba(0,0,0,0)",   // 不畫線
+                    pointRadius:0,                // 不顯示點
                 },
                 {
                     label:"疼痛程度（0~10）",
@@ -364,10 +390,13 @@ function drawTrendChart(){
                     borderColor:"#c94c4c",
                     backgroundColor:"rgba(201,76,76,0.2)",
                     borderWidth:3,
-                    tension:0.3
+                    tension:0.3,
+                    pointRadius:5,
+                    pointBackgroundColor:"#c94c4c"
                 }
             ]
-        }
+        },
+        plugins:[flowLabelPlugin]
     });
 }
 </script>
