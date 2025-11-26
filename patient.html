@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站 - 趨勢析版（FlowText 月列版）</title>
+<title>經期觀測站（HAPI 出血量寫入修正版）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -72,9 +72,8 @@ th,td {border:1px solid #c9b8a4;padding:6px;text-align:left;}
 <!-- ====================== 趨勢圖區 ====================== -->
 <div class="card">
 <h3>一年趨勢圖（出血量 + 疼痛）</h3>
-<div id="cycleInfo">週期間隔：尚無資料</div>
 
-<!-- ⭐ 新增：月份 + 出血量 列 -->
+<div id="cycleInfo">週期間隔：尚無資料</div>
 <div id="monthRow" style="margin-top:6px;color:#5a4633;font-size:15px;"></div>
 <div id="flowRow" style="margin-top:4px;color:#5a4633;font-size:15px;"></div>
 
@@ -90,18 +89,18 @@ const userName = new URLSearchParams(location.search).get("name") || "訪客";
 document.getElementById("welcome").textContent = "歡迎，" + userName;
 let patientId = null;
 
-// 找或建 PATIENT
+// patient
 async function findOrCreatePatient() {
     let r = await fetch(`${server}/Patient?name=${encodeURIComponent(userName)}`);
     let d = await r.json();
     if (d.entry) return patientId=d.entry[0].resource.id;
 
-    let res = await fetch(`${server}/Patient`,{
-        method:"POST",headers:{"Content-Type":"application/fhir+json"},
+    let res = await fetch(`${server}/Patient`, {
+        method:"POST", headers:{"Content-Type":"application/fhir+json"},
         body:JSON.stringify({
             resourceType:"Patient",
             name:[{text:userName}],
-            identifier:[{system:"http://example.org/user",value:userName}]
+            identifier:[{system:"http://example.org/user", value:userName}]
         })
     });
     return patientId=(await res.json()).id;
@@ -111,12 +110,12 @@ function encodeFlow(str){return{"少":1,"中":2,"多":3}[str]||0;}
 function obsCode(t){return{coding:[{system:"http://loinc.org",code:"TMP",display:t}],text:t};}
 
 // ==================================================
-// 上傳
+// 上傳（已修復 valueQuantity）
 // ==================================================
 async function submitAll(){
     await findOrCreatePatient();
     let recordDate = startDate.value;
-    if(!recordDate){alert("需選擇經期開始日");return;}
+    if(!recordDate){ alert("需選擇經期開始日"); return; }
 
     document.getElementById("statusBox").textContent="送出中…";
 
@@ -131,26 +130,35 @@ async function submitAll(){
     }
 
     let list=[
-        {name:"經期開始日",val:{valueDateTime:startDate.value}},
-        {name:"經期結束日",val:{valueDateTime:endDate.value}},
-        {name:"出血量",val:{valueString:flow.value,valueQuantity:{value:encodeFlow(flow.value)}}},
-        {name:"疼痛程度",val:{valueQuantity:{value:Number(pain.value)}}},
-        {name:"症狀",val:{valueString:symptoms.value}},
-        {name:"心情",val:{valueString:mood.value}},
-        {name:"壓力",val:{valueQuantity:{value:Number(stress.value)}}},
-        {name:"睡眠",val:{valueString:sleep.value}},
+        { name:"經期開始日", val:{ valueDateTime:startDate.value }},
+        { name:"經期結束日", val:{ valueDateTime:endDate.value }},
+        { name:"出血量",
+          val:{
+            valueString:flow.value,
+            valueQuantity:{
+                value:encodeFlow(flow.value),
+                unit:"level",
+                system:"http://example.org/flow-level",
+                code:"flow-level"
+            }
+          }},
+        { name:"疼痛程度", val:{ valueQuantity:{ value:Number(pain.value) }}},
+        { name:"症狀", val:{ valueString:symptoms.value }},
+        { name:"心情", val:{ valueString:mood.value }},
+        { name:"壓力", val:{ valueQuantity:{ value:Number(stress.value) }}},
+        { name:"睡眠", val:{ valueString:sleep.value }}
     ];
 
     list.forEach(o=>{
         entries.push({
             resource:{
-                resourceType:"Observation",status:"final",
+                resourceType:"Observation", status:"final",
                 code:obsCode(o.name),
-                subject:{reference:`Patient/${patientId}`},
+                subject:{ reference:`Patient/${patientId}` },
                 effectiveDateTime:recordDate,
                 ...o.val
             },
-            request:{method:"POST",url:"Observation"}
+            request:{method:"POST", url:"Observation"}
         });
     });
 
@@ -173,7 +181,6 @@ async function queryData(){
     let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
     let d=await r.json();
 
-    // ======= 表格 =======
     let rows=(d.entry||[]).map(e=>{
         let o=e.resource;
         return `<tr>
@@ -184,72 +191,70 @@ async function queryData(){
         </tr>`;
     }).join("");
 
-    document.getElementById("tableBox").innerHTML=
+    document.getElementById("tableBox").innerHTML =
         `<table><tr><th>項目</th><th>日期</th><th>字串值</th><th>數值</th></tr>${rows}</table>`;
 
-    // ======= 12 個月份 =======
+    // ======= 12 個月份固定 =======
     let year=(new Date()).getFullYear();
     let months=[`${year}-01`,`${year}-02`,`${year}-03`,`${year}-04`,
                 `${year}-05`,`${year}-06`,`${year}-07`,`${year}-08`,
                 `${year}-09`,`${year}-10`,`${year}-11`,`${year}-12`];
 
-    let flowMap={},painMap={},cycleStart=[];
+    let flowMap={}, painMap={}, cycleStart=[];
 
     (d.entry||[]).forEach(e=>{
         let o=e.resource;
         let ds=o.effectiveDateTime;
-        if(!ds)return;
-        let month=ds.substring(0,7);
+        if(!ds) return;
 
-        if(o.code.text==="出血量" && o.valueQuantity) flowMap[month]=o.valueQuantity.value;
-        if(o.code.text==="疼痛程度" && o.valueQuantity) painMap[month]=o.valueQuantity.value;
-        if(o.code.text==="經期開始日") cycleStart.push(ds.substring(0,10));
+        let month = ds.substring(0,7);
+
+        if(o.code.text==="出血量" && o.valueQuantity)
+            flowMap[month] = o.valueQuantity.value;
+
+        if(o.code.text==="疼痛程度" && o.valueQuantity)
+            painMap[month] = o.valueQuantity.value;
+
+        if(o.code.text==="經期開始日")
+            cycleStart.push(ds.substring(0,10));
     });
 
-    window.flowData=months.map(m=>flowMap[m]||null);
-    window.painData=months.map(m=>painMap[m]||null);
-    window.monthLabels=months;
+    window.flowData = months.map(m=>flowMap[m]||null);
+    window.painData = months.map(m=>painMap[m]||null);
+    window.monthLabels = months;
 
     // ======= 週期間隔 =======
     cycleStart.sort();
     if(cycleStart.length>1){
         let ints=[];
         for(let i=1;i<cycleStart.length;i++){
-            let d1=new Date(cycleStart[i-1]),d2=new Date(cycleStart[i]);
+            let d1=new Date(cycleStart[i-1]), d2=new Date(cycleStart[i]);
             ints.push(Math.round((d2-d1)/86400000));
         }
         document.getElementById("cycleInfo").textContent="週期間隔："+ints.join(" → ")+" 天";
-    }else{
+    } else {
         document.getElementById("cycleInfo").textContent="週期間隔：尚無資料";
     }
 
-    // ======= ⭐ 顯示月份列 =======
-    let monthLabelsDisplay = window.monthLabels
-        .map(m => Number(m.substring(5)))   // "01"→1
-        .join("   ");
-
+    // ======= 月份列 =======
     document.getElementById("monthRow").textContent =
-        "月份：  " + monthLabelsDisplay;
+        "月份： " + window.monthLabels.map(m=>Number(m.substring(5))).join(" ");
 
-    // ======= ⭐ 顯示出血量列 =======
-    let flowDisplay = window.flowData
-        .map(v => v===1?"少":v===2?"中":v===3?"多":"-")
-        .join("   ");
-
+    // ======= 出血量列 =======
     document.getElementById("flowRow").textContent =
-        "出血：  " + flowDisplay;
+        "出血： " + window.flowData
+            .map(v=>v===1?"少":v===2?"中":v===3?"多":"-")
+            .join(" ");
 
     drawTrendChart();
     document.getElementById("queryStatus").textContent="查詢完成";
 }
 
 // ==================================================
-// 趨勢圖（保持不動）
+// 趨勢圖
 // ==================================================
 let trendChartRef=null;
-
-function drawTrendChart(){
-
+function drawTrendChart() {
     const ctx=document.getElementById("trendChart").getContext("2d");
     if(trendChartRef) trendChartRef.destroy();
 
@@ -258,22 +263,12 @@ function drawTrendChart(){
         data:{
             labels:window.monthLabels,
             datasets:[
-                {
-                    label:"出血量",
-                    data:window.flowData,
-                    borderColor:"rgba(0,0,0,0)",
-                    pointRadius:0
-                },
-                {
-                    label:"疼痛程度",
-                    data:window.painData,
-                    borderColor:"#c94c4c",
-                    backgroundColor:"rgba(201,76,76,0.2)",
-                    borderWidth:3,
-                    tension:0.3,
-                    pointRadius:5,
-                    pointBackgroundColor:"#c94c4c"
-                }
+                { label:"出血量", data:window.flowData,
+                  borderColor:"rgba(0,0,0,0)", pointRadius:0 },
+                { label:"疼痛程度", data:window.painData,
+                  borderColor:"#c94c4c", backgroundColor:"rgba(201,76,76,0.2)",
+                  borderWidth:3, tension:0.3, pointRadius:5,
+                  pointBackgroundColor:"#c94c4c" }
             ]
         },
         options:{
@@ -282,9 +277,9 @@ function drawTrendChart(){
                     callbacks:{
                         label:function(ctx){
                             let pain = ctx.raw ?? "";
-                            let flow = window.flowData[ctx.dataIndex];
-                            let flowText = flow===1?"少":flow===2?"中":flow===3?"多":"-";
-                            return `疼痛:${pain}  出血:${flowText}`;
+                            let fv = window.flowData[ctx.dataIndex];
+                            let flow = fv===1?"少":fv===2?"中":fv===3?"多":"-";
+                            return `疼痛:${pain} 出血:${flow}`;
                         }
                     }
                 }
