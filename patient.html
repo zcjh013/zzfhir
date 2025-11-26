@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站 - 趨勢分析版</title>
+<title>經期觀測站 - 趨勢析版（FlowLabel版）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -135,15 +135,14 @@ th,td {
 
 <button onclick="queryData()">查詢所有資料</button>
 
-<!-- ⭐查詢回報 -->
 <div id="queryStatus" style="margin-top:10px;font-weight:bold;color:#6d4b3a;"></div>
 
 <div id="tableBox"></div>
 </div>
 
-<!-- ====================== 趨勢圖區 ====================== -->
+<!-- ====================== 趨勢圖 ====================== -->
 <div class="card">
-<h3>一年趨勢圖（出血量 + 疼痛程度）</h3>
+<h3>一年趨勢圖（出血量 + 疼痛）</h3>
 <div id="cycleInfo">週期間隔：尚無資料</div>
 <canvas id="trendChart" height="120"></canvas>
 </div>
@@ -188,7 +187,7 @@ function obsCode(t) {
     };
 }
 
-// ====================== 上傳紀錄 ======================
+// ====================== 上傳 ======================
 async function submitAll() {
 
     await findOrCreatePatient();
@@ -213,14 +212,9 @@ async function submitAll() {
     let list = [
         { name:"經期開始日", val:{ valueDateTime:startDate.value }},
         { name:"經期結束日", val:{ valueDateTime:endDate.value }},
-
-        { 
-            name:"出血量",
-            val:{ valueString:flow.value,
-                  valueQuantity:{ value:encodeFlow(flow.value) }
-            }
-        },
-
+        { name:"出血量",
+          val:{ valueString:flow.value,
+                valueQuantity:{ value:encodeFlow(flow.value) }}},
         { name:"疼痛程度", val:{ valueQuantity:{value:Number(pain.value)} }},
         { name:"症狀", val:{ valueString:symptoms.value }},
         { name:"心情", val:{ valueString:mood.value }},
@@ -252,11 +246,12 @@ async function submitAll() {
 }
 
 </script>
+
 <script>
-// ====================== 查詢所有資料 ======================
+// ====================== 查詢 ======================
 async function queryData() {
 
-    document.getElementById("queryStatus").textContent = "查詢中…";  // ⭐新增
+    document.getElementById("queryStatus").textContent = "查詢中…";
 
     await findOrCreatePatient();
 
@@ -280,7 +275,6 @@ async function queryData() {
             ${rows}
         </table>`;
 
-    // ⭐⭐ 固定月份：1-12 月（完全不滾動）
     let year = (new Date()).getFullYear();
     let months = [
         `${year}-01`, `${year}-02`, `${year}-03`, `${year}-04`,
@@ -297,19 +291,14 @@ async function queryData() {
 
         let month = date.substring(0,7);
 
-        if(o.code.text === "出血量"){
-            if(o.valueQuantity)
-                flowMap[month] = o.valueQuantity.value;
-        }
+        if(o.code.text === "出血量" && o.valueQuantity)
+            flowMap[month] = o.valueQuantity.value;
 
-        if(o.code.text === "疼痛程度"){
-            if(o.valueQuantity)
-                painMap[month] = o.valueQuantity.value;
-        }
+        if(o.code.text === "疼痛程度" && o.valueQuantity)
+            painMap[month] = o.valueQuantity.value;
 
-        if(o.code.text === "經期開始日"){
+        if(o.code.text === "經期開始日")
             cycleStart.push(date.substring(0,10));
-        }
     });
 
     window.flowData = months.map(m => flowMap[m] || null);
@@ -325,54 +314,66 @@ async function queryData() {
     }
 
     if(intervals.length>0)
-        document.getElementById("cycleInfo").textContent="週期間隔："+intervals.join(" 天 → ")+" 天";
+        document.getElementById("cycleInfo").textContent="週期間隔："+intervals.join(" → ")+" 天";
     else
         document.getElementById("cycleInfo").textContent="週期間隔：尚無資料";
 
     drawTrendChart();
 
-    document.getElementById("queryStatus").textContent = "查詢完成";  // ⭐新增
+    document.getElementById("queryStatus").textContent = "查詢完成";
 }
 </script>
 
 <script>
+// ====================== 趨勢圖（v4 plugin 修正版） ======================
 let trendChartRef=null;
 
 function drawTrendChart(){
 
     const ctx=document.getElementById("trendChart").getContext("2d");
-
     if(trendChartRef) trendChartRef.destroy();
 
-    // ⭐⭐ 轉換出血量文字
+    // 出血量 → 中文
     const flowTextMap = {1:"少", 2:"中", 3:"多"};
 
-    // ⭐⭐ 自訂 Plugin：在疼痛點旁顯示出血量文字
+    // ⭐⭐ Chart.js v4 專用 Plugin
     const flowLabelPlugin = {
-        id: "flowLabelPlugin",
-        afterDatasetsDraw(chart,args,pluginOptions){
-            const {ctx} = chart;
+        id: 'flowLabelPlugin',
+        afterDatasetsDraw(chart, args, pluginOptions) {
 
-            window.painData.forEach((pain, index)=>{
-                let flowVal = window.flowData[index];
-                if (pain == null || flowVal == null) return;
+            const { ctx } = chart;
 
-                let meta = chart.getDatasetMeta(1); // 疼痛 dataset 在第二條
-                let point = meta.data[index];
+            // 找到疼痛 dataset（避免硬編 index）
+            const painIdx = chart.data.datasets.findIndex(ds => ds.label.includes("疼痛"));
+            if (painIdx === -1) return;
+
+            const meta = chart.getDatasetMeta(painIdx);
+
+            window.painData.forEach((painValue, index) => {
+
+                const flowVal = window.flowData[index];
+                if (painValue == null || flowVal == null) return;
+
+                const point = meta.data[index];
                 if (!point) return;
 
-                let x = point.x + 8; // 右側偏移
-                let y = point.y - 8; // 上方偏移
+                const x = point.x;
+                const y = point.y;
 
                 ctx.save();
                 ctx.fillStyle = "#5a4633";
                 ctx.font = "12px Arial";
-                ctx.fillText(flowTextMap[flowVal], x, y);
+                ctx.textAlign = "left";
+                ctx.textBaseline = "middle";
+
+                ctx.fillText(flowTextMap[flowVal], x + 8, y - 10);
+
                 ctx.restore();
             });
         }
     };
 
+    // ====================== 畫圖 ======================
     trendChartRef=new Chart(ctx,{
         type:"line",
         data:{
@@ -381,8 +382,8 @@ function drawTrendChart(){
                 {
                     label:"出血量（1=少, 2=中, 3=多）",
                     data:window.flowData,
-                    borderColor:"rgba(0,0,0,0)",   // 不畫線
-                    pointRadius:0,                // 不顯示點
+                    borderColor:"rgba(0,0,0,0)",
+                    pointRadius:0            // 不畫點
                 },
                 {
                     label:"疼痛程度（0~10）",
@@ -396,7 +397,10 @@ function drawTrendChart(){
                 }
             ]
         },
-        plugins:[flowLabelPlugin]
+        options:{
+            animation:false
+        },
+        plugins:[ flowLabelPlugin ]
     });
 }
 </script>
