@@ -3,7 +3,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站（CycleChart Debug V5）</title>
+<title>經期觀測站（CycleChart Debug V6）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -28,13 +28,13 @@ button:hover{background:#b88b63;}
 </head>
 <body>
 
-<h2>經 期 觀 測 站（CycleChart Debug V5）</h2>
+<h2>經 期 觀 測 站（CycleChart Debug V6）</h2>
 <div id="debugBox">
 <b>🧩 Debug 控制台</b><br>
 <div id="debugStatus">狀態：閒置中</div>
 <div id="debugError">錯誤：無</div>
 <div id="debugServer">伺服器：HAPI FHIR</div>
-<div id="debugVersion">版本：CycleChart V5</div>
+<div id="debugVersion">版本：CycleChart V6</div>
 </div>
 
 <div class="row">
@@ -62,8 +62,6 @@ button:hover{background:#b88b63;}
 <div style="text-align:center;margin-bottom:10px;">
 <button onclick="submitAll()">🚀 送出今日紀錄</button>
 <button onclick="generateHalfYear()">🧩 產生半年資料</button>
-<button onclick="renderCalendar()">📅 載入月曆</button>
-<button onclick="loadMonthlyPain()">📈 載入趨勢圖</button>
 <button onclick="checkServerData()">🔎 查詢伺服器資料</button>
 <button onclick="loadCycleChart()">📊 顯示經期狀況表</button>
 </div>
@@ -98,6 +96,80 @@ async function findOrCreatePatient(){
  }catch(e){updateDebug("建立病人失敗",e);}
 }
 
+async function submitAll(){
+ updateDebug("📤 傳送中...");
+ try{
+  await findOrCreatePatient();
+  let today=new Date().toISOString().substring(0,10);
+  let list=[
+   {name:"經期開始日",val:{valueDateTime:startDate.value}},
+   {name:"經期結束日",val:{valueDateTime:endDate.value}},
+   {name:"出血量",val:{valueString:flow.value}},
+   {name:"疼痛程度",val:{valueQuantity:{value:Number(pain.value)}}},
+   {name:"其他症狀",val:{valueString:symptoms.value}},
+   {name:"心情",val:{valueString:mood.value}},
+   {name:"壓力指數",val:{valueQuantity:{value:Number(stress.value)}}},
+   {name:"睡眠品質",val:{valueString:sleep.value}}
+  ];
+  let entries=list.map(o=>({
+   resource:{resourceType:"Observation",status:"final",
+    code:{text:o.name},subject:{reference:`Patient/${patientId}`},
+    effectiveDateTime:today,...o.val},
+   request:{method:"POST",url:"Observation"}
+  }));
+  let res=await fetch(`${server}`,{
+   method:"POST",headers:{"Content-Type":"application/fhir+json"},
+   body:JSON.stringify({resourceType:"Bundle",type:"transaction",entry:entries})
+  });
+  if(res.ok){updateDebug("✅ 今日紀錄已送出");await loadCycleChart();}
+  else{updateDebug("❌ 傳送失敗",res.status);}
+ }catch(e){updateDebug("❌ 傳送錯誤",e);}
+}
+
+async function generateHalfYear(){
+ updateDebug("🧩 產生半年資料中...");
+ try{
+  await findOrCreatePatient();
+  let arr=[],today=new Date(),startYear=today.getFullYear(),startMonth=today.getMonth()-5;
+  if(startMonth<0){startYear--;startMonth+=12;}
+  for(let m=0;m<6;m++){
+    let d=new Date(startYear,startMonth+m,25);
+    arr.push({
+      date:d.toISOString(),
+      flow:["少","中","多"][Math.floor(Math.random()*3)],
+      pain:Math.floor(Math.random()*6)+3
+    });
+  }
+  for(let rec of arr){
+    await fetch(`${server}/Observation`,{
+      method:"POST",headers:{"Content-Type":"application/fhir+json"},
+      body:JSON.stringify({
+        resourceType:"Observation",
+        status:"final",
+        code:{text:"半年資料"},
+        subject:{reference:`Patient/${patientId}`},
+        effectiveDateTime:rec.date,
+        valueString:rec.flow,
+        valueQuantity:{value:rec.pain}
+      })
+    });
+  }
+  updateDebug("✅ 半年資料產生完成");
+  await loadCycleChart();
+ }catch(e){updateDebug("❌ 半年資料錯誤",e);}
+}
+
+async function checkServerData(){
+ updateDebug("🔎 查詢伺服器資料...");
+ try{
+  await findOrCreatePatient();
+  let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=10`);
+  let d=await r.json();
+  if(!d.entry){updateDebug("⚠ 無伺服器資料");return;}
+  updateDebug(`✅ 找到 ${d.entry.length} 筆資料`, JSON.stringify(d.entry[0].resource.code.text));
+ }catch(e){updateDebug("❌ 查詢錯誤",e);}
+}
+
 async function loadCycleChart(){
  updateDebug("📊 經期狀況表讀取中...");
  try{
@@ -107,18 +179,14 @@ async function loadCycleChart(){
   if(!d.entry){updateDebug("⚠ 無觀測資料");return;}
   let records=[];
   d.entry.forEach(e=>{
-   let o=e.resource;let ds=o.effectiveDateTime?.substring(0,10);if(!ds)return;
-   let pain=o.valueQuantity?.value||null;
-   let flow=o.valueString||null;
-   if(o.code.text.includes("疼痛")||o.code.text.includes("出血")||o.code.text.includes("經期")){
-     records.push({date:ds,pain,flow});
-   }
+    let o=e.resource;
+    let ds=o.effectiveDateTime?.substring(0,10); if(!ds)return;
+    let pain=o.valueQuantity?.value||null;
+    let flow=o.valueString||null;
+    if(pain!==null||flow){records.push({date:ds,pain,flow});}
   });
   records.sort((a,b)=>new Date(a.date)-new Date(b.date));
   if(records.length===0){updateDebug("⚠ 無有效資料");return;}
-  // 模擬經期間隔
-  let cycleIntervals=[],lastStart=null;
-  records.forEach(r=>{if(r.flow){if(lastStart){let diff=(new Date(r.date)-new Date(lastStart))/86400000;cycleIntervals.push({date:r.date,diff});}lastStart=r.date;}});
 
   const ctx=document.getElementById("cycleChart");
   if(cycleChart)cycleChart.destroy();
@@ -126,10 +194,10 @@ async function loadCycleChart(){
   const labels=records.map(r=>r.date.substring(5));
   const painValues=records.map(r=>r.pain||0);
   const flowColors=records.map(r=>{
-   if(r.flow==="多")return "rgba(255,0,0,0.4)";
-   if(r.flow==="中")return "rgba(255,100,100,0.3)";
-   if(r.flow==="少")return "rgba(255,150,150,0.2)";
-   return "rgba(0,0,0,0)";
+    if(r.flow==="多")return "rgba(255,0,0,0.4)";
+    if(r.flow==="中")return "rgba(255,100,100,0.3)";
+    if(r.flow==="少")return "rgba(255,150,150,0.2)";
+    return "rgba(0,0,0,0)";
   });
 
   cycleChart=new Chart(ctx,{
@@ -154,12 +222,10 @@ async function loadCycleChart(){
     }
    }
   });
-
   updateDebug("✅ 經期狀況表已繪製");
  }catch(e){updateDebug("❌ 繪製錯誤",e);}
 }
 </script>
 
-<div id="loadingOverlay">處理中…</div>
 </body>
 </html>
