@@ -1,67 +1,243 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
-<title>經期觀測站 - 醫護端</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<title>經期觀測站（醫護版 V1）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body { background:#e8dfd3; font-family:Arial; color:#4b3f2f; padding:20px; }
-h2 { text-align:center; color:#6d4b3a; }
-.card { background:#fffaf3; padding:15px; border-radius:10px; box-shadow:0 3px 6px rgba(0,0,0,0.1); margin-bottom:20px; }
-input { width:100%; padding:8px; margin:5px 0 10px; border-radius:6px; border:1px solid #d8c3a5; }
-button { width:100%; padding:12px; border:none; background:#c9a37c; color:white; border-radius:8px; }
-table { width:100%; border-collapse:collapse; }
-td,th { border:1px solid #d8c3a5; padding:6px; }
+body {background:#eef3ff;font-family:Arial;color:#333;margin:0;padding:20px;}
+h2 {text-align:center;color:#345b9c;margin-bottom:15px;}
+.card {
+    background:white;padding:18px;border-radius:12px;
+    border-left:5px solid #345b9c;margin-bottom:20px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+button {
+    padding:10px 18px;background:#345b9c;color:white;
+    border:none;border-radius:8px;cursor:pointer;font-size:15px;
+    margin-top:6px;
+}
+button:hover {opacity:0.9;}
+label {font-weight:bold;margin-top:6px;display:block;}
+input,select {
+    width:100%;padding:6px;margin-top:4px;
+    border-radius:6px;border:1px solid #bbb;background:white;
+}
+table {width:100%;border-collapse:collapse;margin-top:10px;}
+th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
+.hidden {display:none;}
+.row {display:flex;gap:10px;}
+.col {flex:1;}
+#popupOverlay{
+    display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.55);align-items:center;justify-content:center;
+}
+#popup{
+    background:white;padding:20px;border-radius:12px;width:80%;max-width:420px;
+}
 </style>
 </head>
+
 <body>
 
-<h2>經 期 觀 測 站 - 醫 護 端</h2>
+<h2>經期觀測站（醫護版）</h2>
 
+<!-- ======================== 病人查詢 ======================== -->
 <div class="card">
-    <h3>搜尋病人</h3>
-    <input id="pname" placeholder="輸入病人姓名">
-    <button onclick="searchPatient()">搜尋</button>
+<h3>查詢病人資料</h3>
+
+<label>病人姓名</label>
+<input type="text" id="patientName">
+
+<button onclick="loadPatient()">查詢資料</button>
+<div id="statusBox" style="font-weight:bold;margin-top:10px;"></div>
 </div>
 
-<div class="card">
-    <h3>病人資料</h3>
-    <div id="info">尚未選擇病人</div>
+<!-- ======================== 資料表格 ======================== -->
+<div class="card hidden" id="dataCard">
+<h3>完整欄位資料（依日期整併）</h3>
+<div id="tableBox"></div>
 </div>
 
-<div class="card">
-    <h3>觀測紀錄</h3>
-    <table id="obsTable">
-        <tr><th>日期</th><th>項目</th><th>數值</th></tr>
-    </table>
+<!-- ======================== 疼痛圖 ======================== -->
+<div class="card hidden" id="chartCard">
+<h3>疼痛趨勢圖</h3>
+<canvas id="trendChart" height="120"></canvas>
+</div>
+
+<!-- ======================== 建議輸入彈出視窗 ======================== -->
+<div id="popupOverlay">
+  <div id="popup">
+    <h3 id="popupTitle">輸入醫護建議</h3>
+    <label>醫護建議內容：</label>
+    <input type="text" id="adviceInput">
+    <button onclick="submitAdvice()">送出建議</button>
+    <button onclick="closePopup()" style="background:#aaa;margin-left:10px;">取消</button>
+  </div>
 </div>
 
 <script>
-const server="https://hapi.fhir.org/baseR4";
-let patientId=null;
+// =================== 基礎設定 ===================
+const server = "https://hapi.fhir.org/baseR4";
+let patientId = null;
+let selectedDate = null; // 醫護點選的日期
 
-async function searchPatient(){
-    let name=document.getElementById("pname").value;
-    let r=await fetch(`${server}/Patient?name=${name}`);
-    let d=await r.json();
-    if(!d.entry){ document.getElementById("info").textContent="查無此人"; return; }
-    let p=d.entry[0].resource;
-    patientId=p.id;
-    document.getElementById("info").textContent=`姓名：${name}｜ID：${patientId}`;
-    loadObs();
+// =================== 查詢病人 ===================
+async function loadPatient(){
+    const name = patientName.value.trim();
+    if(!name){ alert("請輸入病人姓名"); return; }
+
+    statusBox.textContent = "查詢中…";
+
+    // 找病人
+    let r = await fetch(`${server}/Patient?name=${encodeURIComponent(name)}`);
+    let d = await r.json();
+    if(!d.entry){
+        statusBox.textContent = "查無此病人";
+        return;
+    }
+    patientId = d.entry[0].resource.id;
+
+    statusBox.textContent = "已找到病人，載入資料中…";
+
+    loadTable();
+    loadTrend();
 }
 
-async function loadObs(){
-    let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&_sort=-date`);
-    let d=await r.json();
-    let tb=document.getElementById("obsTable");
-    tb.innerHTML="<tr><th>日期</th><th>項目</th><th>數值</th></tr>";
+// =================== 載入全部欄位表格 ===================
+async function loadTable(){
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
+    let d = await r.json();
+
+    let map={};
+
     (d.entry||[]).forEach(e=>{
         let o=e.resource;
-        let val=o.valueQuantity?o.valueQuantity.value:(o.valueString||"");
-        tb.innerHTML+=`<tr><td>${o.effectiveDateTime?.substring(0,10) || ""}</td><td>${o.code.text}</td><td>${val}</td></tr>`;
+        let date=o.effectiveDateTime?.substring(0,10);
+        if(!date) return;
+
+        if(!map[date]) map[date]={};
+
+        map[date][o.code.text] = {
+            s:o.valueString || "",
+            n:o.valueQuantity?o.valueQuantity.value:""
+        };
     });
+
+    let rows = Object.keys(map).sort().map(date=>{
+        let v=map[date];
+        return `
+        <tr>
+            <td>${date}</td>
+            <td>${v["出血量"]?.s||""}</td>
+            <td>${v["疼痛程度"]?.n||""}</td>
+            <td>${v["症狀"]?.s||""}</td>
+            <td>${v["心情"]?.s||""}</td>
+            <td>${v["壓力"]?.n||""}</td>
+            <td>${v["睡眠"]?.s||""}</td>
+            <td>${v["醫護建議"]?.s||""}</td>
+            <td><button onclick="openAdvice('${date}')">輸入建議</button></td>
+        </tr>`;
+    }).join("");
+
+    tableBox.innerHTML =
+        `<table>
+            <tr>
+                <th>日期</th><th>出血量</th><th>疼痛</th><th>症狀</th>
+                <th>心情</th><th>壓力</th><th>睡眠</th>
+                <th>現有醫護建議</th><th>新增建議</th>
+            </tr>
+            ${rows}
+        </table>`;
+
+    dataCard.classList.remove("hidden");
+    statusBox.textContent = "資料載入完成";
+}
+
+// =================== 開啟建議彈窗 ===================
+function openAdvice(date){
+    selectedDate = date;
+    popupTitle.textContent = `針對 ${date} 的醫護建議：`;
+    adviceInput.value = "";
+    popupOverlay.style.display = "flex";
+}
+
+function closePopup(){
+    popupOverlay.style.display = "none";
+}
+
+// =================== 上傳醫護建議 ===================
+async function submitAdvice(){
+    if(!adviceInput.value.trim()){
+        alert("請輸入建議內容"); return;
+    }
+
+    const text = adviceInput.value.trim();
+
+    await fetch(`${server}/Observation`,{
+        method:"POST",
+        headers:{"Content-Type":"application/fhir+json"},
+        body:JSON.stringify({
+            resourceType:"Observation",
+            status:"final",
+            code:{text:"醫護建議"},
+            subject:{reference:`Patient/${patientId}`},
+            effectiveDateTime:selectedDate,
+            valueString:text
+        })
+    });
+
+    closePopup();
+    loadTable();
+    alert("已送出醫護建議！");
+}
+
+// =================== 疼痛折線圖 ===================
+async function loadTrend(){
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
+    let d = await r.json();
+
+    let painMap={};
+
+    (d.entry||[]).forEach(e=>{
+        let o=e.resource;
+        let ds=o.effectiveDateTime;
+        if(!ds) return;
+        let m = ds.substring(0,7);
+        if(o.code.text==="疼痛程度" && o.valueQuantity)
+            painMap[m] = o.valueQuantity.value;
+    });
+
+    let year=(new Date()).getFullYear();
+    let labels=[
+        `${year}-01`,`${year}-02`,`${year}-03`,`${year}-04`,
+        `${year}-05`,`${year}-06`,`${year}-07`,`${year}-08`,
+        `${year}-09`,`${year}-10`,`${year}-11`,`${year}-12`
+    ];
+
+    let painData = labels.map(m=>painMap[m]||null);
+
+    const ctx=document.getElementById("trendChart");
+    if(window.trc) window.trc.destroy();
+
+    window.trc = new Chart(ctx,{
+        type:"line",
+        data:{
+            labels:labels,
+            datasets:[{
+                label:"疼痛程度",
+                data:painData,
+                borderColor:"#345b9c",
+                borderWidth:3,
+                pointRadius:5,
+                tension:0.25
+            }]
+        }
+    });
+
+    chartCard.classList.remove("hidden");
 }
 </script>
 
