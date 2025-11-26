@@ -86,7 +86,7 @@ border:none;border-radius:8px;font-size:16px;}
 </div>
 
 <script>
-const server = "https://hapi.fhir.org/baseR4";
+const server = "https://server.fire.ly/r4";
 const userName = new URLSearchParams(location.search).get("name") || "訪客";
 document.getElementById("welcome").textContent = "歡迎，" + userName + "（請點按鈕開始載入）";
 let patientId = null;
