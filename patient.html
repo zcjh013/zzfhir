@@ -1,581 +1,209 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
-
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站 - 病人端（方案C＋趨勢圖修正版）</title>
+<title>經期觀測站（Firely Debug V3）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <style>
-    body {
-        background: #f3e9dd;
-        font-family: Arial;
-        color: #4b3f2f;
-        margin: 0;
-        padding: 20px;
-    }
-    h2 {
-        text-align: center;
-        color: #6d4b3a;
-        margin-bottom: 10px;
-    }
-    #welcome {
-        text-align: center;
-        margin-bottom: 20px;
-        font-size: 18px;
-    }
-    .row {
-        display: flex;
-        gap: 20px;
-    }
-    .col { flex: 1; }
-    .card {
-        background: #fffaf3;
-        padding: 18px;
-        border-radius: 12px;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-        border-left: 5px solid #c19a6b;
-        margin-bottom: 20px;
-    }
-    label {
-        font-weight: bold;
-        margin-top: 10px;
-        display: block;
-    }
-    input, select, textarea {
-        width: 100%;
-        padding: 9px;
-        margin-top: 4px;
-        margin-bottom: 12px;
-        border-radius: 6px;
-        border: 1px solid #d8c3a5;
-        background: #fff7ef;
-    }
-    textarea { height: 60px; }
-    .separator {
-        width: 2px;
-        background: #c9b8a4;
-        margin: 0 10px;
-        border-radius: 2px;
-    }
-    button {
-        width: 100%;
-        padding: 14px;
-        margin-top: 10px;
-        background: #c9a37c;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-    }
-    #calendarTable td {
-        border: 1px solid #e5d3c0;
-        width: 14%;
-        height: 60px;
-        vertical-align: top;
-        padding: 3px;
-        position: relative;
-    }
-    .period-day { background: #ffe5e5 !important; }
+body {background:#f3e9dd;font-family:Arial;color:#4b3f2f;margin:0;padding:20px;}
+h2{text-align:center;color:#6d4b3a;margin-bottom:10px;}
+#debugBox{background:#fff8e6;padding:10px;border-radius:10px;border:1px solid #d3b782;margin-bottom:15px;}
+.status-log{font-size:15px;margin-top:4px;color:#5c4b3a;}
+.row{display:flex;gap:20px;}
+.col{flex:1;}
+.card{background:#fffaf3;padding:18px;border-radius:12px;
+box-shadow:0 3px 6px rgba(0,0,0,0.1);border-left:5px solid #c19a6b;margin-bottom:20px;}
+label{font-weight:bold;margin-top:10px;display:block;}
+input,select,textarea{width:100%;padding:9px;margin-top:4px;margin-bottom:12px;
+border-radius:6px;border:1px solid #d8c3a5;background:#fff7ef;}
+textarea{height:60px;}
+.separator{width:2px;background:#c9b8a4;margin:0 10px;border-radius:2px;}
+button{padding:10px 20px;margin:5px;background:#c9a37c;color:white;border:none;
+border-radius:6px;font-size:15px;cursor:pointer;}
+button:hover{background:#b88b63;}
+#calendarTable td{border:1px solid #e5d3c0;width:14%;height:60px;vertical-align:top;padding:3px;}
+.period-day{background:#ffe5e5 !important;}
+#loadingOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+background:rgba(0,0,0,0.5);color:white;font-size:32px;
+align-items:center;justify-content:center;z-index:9999;}
 </style>
 </head>
-
 <body>
 
-<h2>經 期 觀 測 站（Firely Debug V2）</h2>
-<div id="welcome">資料讀取中…</div>
+<h2>經 期 觀 測 站（Firely Debug V3）</h2>
+<div id="debugBox">
+<b>🧩 Debug 控制台</b><br>
+<div id="debugStatus">狀態：閒置中</div>
+<div id="debugError">錯誤：無</div>
+<div id="debugVersion">版本：Firely Debug V3</div>
+</div>
 
 <div class="row">
-    <div class="col">
-        <div class="card">
-            <h3>生理期記錄</h3>
-
-            <label>經期開始日</label>
-            <input type="date" id="startDate">
-
-            <label>經期結束日</label>
-            <input type="date" id="endDate">
-
-            <label>出血量</label>
-            <select id="flow">
-                <option>少</option>
-                <option>中</option>
-                <option>多</option>
-            </select>
-
-            <label>疼痛程度（0〜10）</label>
-            <input type="number" id="pain" min="0" max="10">
-        </div>
-    </div>
-
-    <div class="separator"></div>
-
-    <div class="col">
-        <div class="card">
-            <h3>今日身心症狀</h3>
-
-            <label>其他症狀</label>
-            <textarea id="symptoms"></textarea>
-
-            <label>心情</label>
-            <select id="mood">
-                <option>平靜</option>
-                <option>普通</option>
-                <option>難過</option>
-                <option>生氣</option>
-                <option>焦慮</option>
-            </select>
-
-            <label>壓力指數（0〜10）</label>
-            <input type="number" id="stress" min="0" max="10">
-
-            <label>睡眠品質</label>
-            <select id="sleep">
-                <option>好</option>
-                <option>普通</option>
-                <option>差</option>
-            </select>
-        </div>
-    </div>
-</div>
-
-<button onclick="submitAll()">送出今日紀錄</button>
-<button onclick="generateHalfYear()">測試半年資料（方案C）</button>
-<div class="status-log" id="submitStatus"></div>
-<div class="status-log" id="generateStatus"></div>
-<div class="status-log" id="chartStatus"></div>
-
-
-<div id="statusBox" class="card">資料讀取中…</div>
-
+<div class="col">
 <div class="card">
-    <h3>月疼痛趨勢（自動合併 JSON＋一般資料）</h3>
-    <canvas id="painChart"></canvas>
-</div>
+<h3>生理期記錄</h3>
+<label>經期開始日</label><input type="date" id="startDate">
+<label>經期結束日</label><input type="date" id="endDate">
+<label>出血量</label><select id="flow"><option>少</option><option>中</option><option>多</option></select>
+<label>疼痛程度（0〜10）</label><input type="number" id="pain" min="0" max="10">
+</div></div>
 
+<div class="separator"></div>
+
+<div class="col">
 <div class="card">
-    <h3>經期月曆</h3>
-    <div style="display:flex;justify-content:space-between;">
-        <button onclick="prevMonth()">⬅ 上個月</button>
-        <div id="calendarTitle"></div>
-        <button onclick="nextMonth()">下個月 ➡</button>
-    </div>
-    <table id="calendarTable" style="width:100%;border-collapse:collapse;"></table>
+<h3>今日身心症狀</h3>
+<label>其他症狀</label><textarea id="symptoms"></textarea>
+<label>心情</label><select id="mood"><option>平靜</option><option>普通</option><option>難過</option><option>生氣</option><option>焦慮</option></select>
+<label>壓力指數（0〜10）</label><input type="number" id="stress" min="0" max="10">
+<label>睡眠品質</label><select id="sleep"><option>好</option><option>普通</option><option>差</option></select>
+</div></div>
 </div>
 
-<!-- ============================= -->
-<!--           主程式開始          -->
-<!-- ============================= -->
+<div style="text-align:center;margin-bottom:10px;">
+<button onclick="submitAll()">🚀 送出今日紀錄</button>
+<button onclick="generateHalfYear()">🧩 產生半年資料</button>
+<button onclick="renderCalendar()">📅 載入月曆</button>
+<button onclick="loadMonthlyPain()">📈 載入趨勢圖</button>
+<button onclick="checkServerData()">🔎 查詢伺服器資料</button>
+</div>
+
+<div class="card"><h3>月疼痛趨勢</h3><canvas id="painChart"></canvas></div>
+<div class="card"><h3>經期月曆</h3><table id="calendarTable" style="width:100%;border-collapse:collapse;"></table></div>
+
 <script>
-const server = "https://hapi.fhir.org/baseR4";
+const server = "https://server.fire.ly/r4";
 const userName = new URLSearchParams(location.search).get("name") || "訪客";
-
-document.getElementById("welcome").textContent =
-    "歡迎，" + userName + "（資料讀取中…）";
-
 let patientId = null;
+let painChart = null;
 
-/*==============================
-  找病人 / 建立病人
-===============================*/
-async function findOrCreatePatient() {
-    let r = await fetch(`${server}/Patient?name=${encodeURIComponent(userName)}`);
-    let d = await r.json();
-
-    if (d.entry) {
-        patientId = d.entry[0].resource.id;
-        return patientId;
-    }
-
-    let res = await fetch(`${server}/Patient`, {
-        method: "POST",
-        headers: {"Content-Type": "application/fhir+json"},
-        body: JSON.stringify({
-            resourceType:"Patient",
-            name:[{text:userName}]
-        })
-    });
-
-    let x = await res.json();
-    patientId = x.id;
-    return patientId;
+function updateDebug(status, error="無"){
+  document.getElementById("debugStatus").textContent = "狀態：" + status;
+  document.getElementById("debugError").textContent = "錯誤：" + error;
+  console.log("🧩", status, error);
 }
 
-function showStatus(t){
-    document.getElementById("statusBox").textContent = t;
+async function findOrCreatePatient(){
+ try{
+  let r = await fetch(`${server}/Patient?name=${encodeURIComponent(userName)}`);
+  let d = await r.json();
+  if(d.entry){patientId=d.entry[0].resource.id;return patientId;}
+  let res = await fetch(`${server}/Patient`,{
+    method:"POST",
+    headers:{"Content-Type":"application/fhir+json"},
+    body:JSON.stringify({resourceType:"Patient",name:[{text:userName}]})
+  });
+  let x = await res.json();patientId=x.id;return patientId;
+ }catch(e){updateDebug("建立病人失敗",e);}
 }
 
-/*==============================
-  送出今日紀錄（Bundle）
-===============================*/
-async function submitAll() {
-
-    document.getElementById("loadingOverlay").style.display="flex";
-    await findOrCreatePatient();
-    let today = new Date().toISOString().substring(0,10);
-
-    showStatus("📤 傳送中…");
-
-    // 找今日舊資料
-    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&date=${today}`);
-    let d = await r.json();
-
-    let entries = [];
-
-    if (d.entry){
-        for (let e of d.entry){
-            entries.push({
-                request:{
-                    method:"DELETE",
-                    url:`Observation/${e.resource.id}`
-                }
-            });
-        }
-    }
-
-    let list = [
-        { code:"經期開始日", val:{ valueDateTime:startDate.value }},
-        { code:"經期結束日", val:{ valueDateTime:endDate.value }},
-        { code:"出血量", val:{ valueString:flow.value }},
-        { code:"疼痛程度", val:{ valueQuantity:{value:Number(pain.value)} }},
-        { code:"其他症狀", val:{ valueString:symptoms.value }},
-        { code:"心情", val:{ valueString:mood.value }},
-        { code:"壓力指數", val:{ valueQuantity:{value:Number(stress.value)} }},
-        { code:"睡眠品質", val:{ valueString:sleep.value }},
-    ];
-
-    for (let o of list){
-        entries.push({
-            resource:{
-                resourceType:"Observation",
-                status:"final",
-                code:{text:o.code},
-                subject:{reference:`Patient/${patientId}`},
-                effectiveDateTime:today,
-                ...o.val
-            },
-            request:{method:"POST",url:"Observation"}
-        });
-    }
-
-    
-    try {
-        const resp = await fetch(`${server}`,{
-    
-        method:"POST",
-        headers:{"Content-Type":"application/fhir+json"},
-        body:JSON.stringify({
-            resourceType:"Bundle",
-            type:"transaction",
-            entry:entries
-        })
-    });
-
-    showStatus("🎉 今日資料已更新！");
-    renderCalendar();
-    
-        if (!resp.ok) {
-            showStatus("❌ 傳送失敗：" + resp.status);
-            document.getElementById("submitStatus").textContent = "❌ 今日紀錄寫入失敗";
-        } else {
-            document.getElementById("submitStatus").textContent = "✅ 今日紀錄寫入成功";
-        }
-    } catch(err) {
-        showStatus("❌ 傳送錯誤：" + err);
-        document.getElementById("submitStatus").textContent = "❌ 今日紀錄傳送錯誤";
-    }
-    
-        if (!resp2.ok) {
-            document.getElementById("generateStatus").textContent = "❌ 半年資料寫入失敗：" + resp2.status;
-        } else {
-            document.getElementById("generateStatus").textContent = "✅ 半年資料寫入成功";
-        }
-    } catch(err) {
-        document.getElementById("generateStatus").textContent = "❌ 半年資料錯誤：" + err;
-    }
-    document.getElementById("loadingOverlay").style.display="none";
-
-
+async function submitAll(){
+ updateDebug("📤 傳送中...");
+ try{
+  await findOrCreatePatient();
+  let today=new Date().toISOString().substring(0,10);
+  let list=[
+   {name:"經期開始日",val:{valueDateTime:startDate.value}},
+   {name:"經期結束日",val:{valueDateTime:endDate.value}},
+   {name:"出血量",val:{valueString:flow.value}},
+   {name:"疼痛程度",val:{valueQuantity:{value:Number(pain.value)}}},
+   {name:"其他症狀",val:{valueString:symptoms.value}},
+   {name:"心情",val:{valueString:mood.value}},
+   {name:"壓力指數",val:{valueQuantity:{value:Number(stress.value)}}},
+   {name:"睡眠品質",val:{valueString:sleep.value}}
+  ];
+  let entries=list.map(o=>({
+   resource:{resourceType:"Observation",status:"final",
+    code:{coding:[{system:"http://loinc.org",code:"TMP",display:o.name}],text:o.name},
+    subject:{reference:`Patient/${patientId}`},effectiveDateTime:today,...o.val},
+   request:{method:"POST",url:"Observation"}
+  }));
+  let res=await fetch(`${server}`,{method:"POST",headers:{"Content-Type":"application/fhir+json"},
+   body:JSON.stringify({resourceType:"Bundle",type:"transaction",entry:entries})});
+  updateDebug(res.ok?"✅ 今日紀錄已送出":"❌ 傳送失敗",res.status);
+ }catch(e){updateDebug("❌ 傳送錯誤",e);}
 }
 
-/*==============================
-  月曆
-===============================*/
-let currentMonth = new Date();
-
-function renderCalendar(){
-    const y = currentMonth.getFullYear();
-    const m = currentMonth.getMonth();
-
-    document.getElementById("calendarTitle").textContent =
-        `${y} 年 ${m+1} 月`;
-
-    const first = new Date(y,m,1).getDay();
-    const days  = new Date(y,m+1,0).getDate();
-
-    let html="<tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr><tr>";
-
-    for(let i=0;i<first;i++) html+="<td></td>";
-
-    for(let d=1;d<=days;d++){
-        let ds = `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-        html += `<td id="d${ds}"><div>${d}</div></td>`;
-        if ((d+first)%7===0) html+="</tr><tr>";
-    }
-
-    html+="</tr>";
-    document.getElementById("calendarTable").innerHTML = html;
-
-    fillCal();
+async function generateHalfYear(){
+ updateDebug("🧩 產生半年資料中...");
+ try{
+  await findOrCreatePatient();
+  let arr=[],today=new Date(),startYear=today.getFullYear(),startMonth=today.getMonth()-5;
+  if(startMonth<0){startYear--;startMonth+=12;}
+  for(let m=0;m<6;m++){let d=new Date(startYear,startMonth+m,25);
+   arr.push({date:d.toISOString(),flow:["少","中","多"][Math.floor(Math.random()*3)],
+    pain:Math.floor(Math.random()*6)+3,stress:Math.floor(Math.random()*10),
+    sleep:["好","普通","差"][Math.floor(Math.random()*3)],
+    mood:["平靜","普通","難過","生氣","焦慮"][Math.floor(Math.random()*5)]});
+  }
+  let res=await fetch(`${server}/Observation`,{
+   method:"POST",headers:{"Content-Type":"application/fhir+json"},
+   body:JSON.stringify({resourceType:"Observation",status:"final",
+     code:{coding:[{system:"http://loinc.org",code:"TMP",display:"半年資料(JSON)"}],text:"半年資料(JSON)"},
+     subject:{reference:`Patient/${patientId}`},effectiveDateTime:new Date().toISOString(),
+     valueString:JSON.stringify(arr)})
+  });
+  updateDebug(res.ok?"✅ 半年資料寫入成功":"❌ 半年資料寫入失敗",res.status);
+ }catch(e){updateDebug("❌ 半年資料錯誤",e);}
 }
 
-function prevMonth(){ currentMonth.setMonth(currentMonth.getMonth()-1); renderCalendar(); }
-function nextMonth(){ currentMonth.setMonth(currentMonth.getMonth()+1); renderCalendar(); }
-
-/*==============================
-  填入月曆資料
-===============================*/
-async function fillCal(){
-
-    await findOrCreatePatient();
-
-    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
-    let d = await r.json();
-
-    let start=null, end=null;
-    let map={};
-
-    (d.entry||[]).forEach(e => {
-        let o=e.resource;
-        let ds=o.effectiveDateTime?.substring(0,10);
-        if(!ds) return;
-
-        if(o.code.text==="經期開始日") start=o.valueDateTime;
-        if(o.code.text==="經期結束日") end=o.valueDateTime;
-
-        if(!map[ds]) map[ds]={};
-
-        if(o.code.text==="出血量") map[ds].flow=o.valueString;
-        if(o.code.text==="疼痛程度") map[ds].pain=o.valueQuantity?.value;
-    });
-
-    if(start&&end){
-        let sd=new Date(start), ed=new Date(end);
-        for(let dt=new Date(sd);dt<=ed;dt.setDate(dt.getDate()+1)){
-            let ds=dt.toISOString().substring(0,10);
-            let cell=document.getElementById("d"+ds);
-            if(cell) cell.classList.add("period-day");
-        }
-    }
-
-    for(let ds in map){
-        let cell=document.getElementById("d"+ds);
-        if(!cell) continue;
-
-        if(map[ds].flow)
-            cell.innerHTML+=`<div>🩸${map[ds].flow}</div>`;
-
-        let p=map[ds].pain;
-        if(p>=1&&p<=3) cell.innerHTML+=`<div>🙂小痛</div>`;
-        if(p>=4&&p<=6) cell.innerHTML+=`<div>😣中痛</div>`;
-        if(p>=7)       cell.innerHTML+=`<div>😫劇痛</div>`;
-    }
+async function renderCalendar(){
+ updateDebug("📅 讀取月曆資料中...");
+ try{
+  await findOrCreatePatient();
+  let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
+  let d=await r.json();
+  const table=document.getElementById("calendarTable");
+  table.innerHTML="";
+  if(!d.entry){updateDebug("⚠ 無月曆資料");return;}
+  let map={};
+  d.entry.forEach(e=>{
+   let o=e.resource;let ds=o.effectiveDateTime?.substring(0,10);if(!ds)return;
+   if(!map[ds])map[ds]={};if(o.code.text==="出血量")map[ds].flow=o.valueString;
+   if(o.code.text==="疼痛程度")map[ds].pain=o.valueQuantity?.value;
+  });
+  let html="<tr><th>日期</th><th>內容</th></tr>";
+  Object.keys(map).sort().forEach(ds=>{
+    html+=`<tr><td>${ds}</td><td>${map[ds].flow||""} ${map[ds].pain?"疼痛:"+map[ds].pain:""}</td></tr>`;
+  });
+  table.innerHTML=html;
+  updateDebug("✅ 月曆資料已載入");
+ }catch(e){updateDebug("❌ 月曆載入錯誤",e);}
 }
-
-/*==============================
-  趨勢圖（支援 JSON 半年資料）
-===============================*/
-let painChart=null;
 
 async function loadMonthlyPain(){
-
-    await findOrCreatePatient();
-
-    /* 來源 A：一般疼痛程度 */
-    let r1 = await fetch(
-        `${server}/Observation?subject=Patient/${patientId}&code=疼痛程度&_count=500&_sort=-date`
-    );
-    let d1 = await r1.json();
-
-    /* 來源 B：半年資料(JSON) */
-    let r2 = await fetch(
-        `${server}/Observation?subject=Patient/${patientId}&code=半年資料(JSON)&_count=50`
-    );
-    let d2 = await r2.json();
-
-    let dataMap={};
-
-    /* 一般資料 */
-    (d1.entry||[]).forEach(e=>{
-        let o=e.resource;
-        if(!o.valueQuantity) return;
-        let month=o.effectiveDateTime.substring(0,7);
-        if(!dataMap[month]) dataMap[month]=o.valueQuantity.value;
-    });
-
-    /* JSON 半年資料 */
-    (d2.entry||[]).forEach(e=>{
-        let arr = [];
-        try { arr = JSON.parse(e.resource.valueString); }
-        catch {}
-
-        arr.forEach(item=>{
-            let m = item.date.substring(0,7);
-            if(!dataMap[m]) dataMap[m]=item.pain;
-        });
-    });
-
-    let labels=Object.keys(dataMap).sort();
-    let values=labels.map(m=>dataMap[m]);
-
-    const ctx=document.getElementById("painChart");
-    if(painChart) painChart.destroy();
-
-    
-    if (labels.length === 0) {
-        document.getElementById("chartStatus").textContent = "⚠ 無法繪製趨勢圖（無資料）";
-        return;
-    } else {
-        document.getElementById("chartStatus").textContent = "✅ 趨勢圖資料已載入";
-    }
-    painChart=new Chart(ctx,{
-
-        type:"line",
-        data:{
-            labels,
-            datasets:[{
-                label:"每月疼痛程度",
-                data:values,
-                borderColor:"#b47f4e",
-                borderWidth:3,
-                tension:0.25
-            }]
-        }
-    });
+ updateDebug("📈 載入趨勢圖中...");
+ try{
+  await findOrCreatePatient();
+  let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&code=半年資料(JSON)&_count=10`);
+  let d=await r.json();if(!d.entry){updateDebug("⚠ 無趨勢資料");return;}
+  let dataMap={},arr=[];
+  d.entry.forEach(e=>{try{arr=JSON.parse(e.resource.valueString);}catch{};arr.forEach(x=>{
+   let m=x.date.substring(0,7);if(!dataMap[m]||x.pain>dataMap[m])dataMap[m]=x.pain;
+  });});
+  const ctx=document.getElementById("painChart");if(painChart)painChart.destroy();
+  let labels=Object.keys(dataMap).sort(),values=labels.map(m=>dataMap[m]);
+  if(labels.length===0){updateDebug("⚠ 無可繪製資料");return;}
+  painChart=new Chart(ctx,{type:"line",data:{labels,datasets:[{label:"每月最大疼痛值",data:values,borderColor:"#b47f4e",borderWidth:3,tension:0.25}]}});
+  updateDebug("✅ 趨勢圖完成");
+ }catch(e){updateDebug("❌ 趨勢圖錯誤",e);}
 }
 
-/*==============================
-  半年資料（方案 C：一筆 Observation）
-===============================*/
-async function generateHalfYear(){
-
-    document.getElementById("loadingOverlay").style.display="flex";
-    await findOrCreatePatient();
-    showStatus("⏳ 產生半年資料中…");
-
-    let today=new Date();
-    let startYear=today.getFullYear();
-    let startMonth=today.getMonth()-5;
-    if(startMonth<0){ startYear--; startMonth+=12; }
-
-    let arr=[];
-
-    for(let m=0;m<6;m++){
-        let d=new Date(startYear,startMonth+m,25);
-        let ds=d.toISOString();
-
-        arr.push({
-            date:ds,
-            flow:["少","中","多"][Math.floor(Math.random()*3)],
-            pain:Math.floor(Math.random()*10),
-            stress:Math.floor(Math.random()*10),
-            sleep:["好","普通","差"][Math.floor(Math.random()*3)],
-            mood:["平靜","普通","難過","生氣","焦慮"][Math.floor(Math.random()*5)]
-        });
-    }
-
-    
-    try {
-        const resp2 = await fetch(`${server}/Observation`,{
-    
-        method:"POST",
-        headers:{"Content-Type":"application/fhir+json"},
-        body:JSON.stringify({
-            resourceType:"Observation",
-            status:"final",
-            code:{text:"半年資料(JSON)"},
-            subject:{reference:`Patient/${patientId}`},
-            effectiveDateTime:new Date().toISOString(),
-            valueString:JSON.stringify(arr)
-        })
-    });
-
-    showStatus("🎉 半年資料已完成！");
-    await loadMonthlyPain();
-    renderCalendar();
-    
-        if (!resp.ok) {
-            showStatus("❌ 傳送失敗：" + resp.status);
-            document.getElementById("submitStatus").textContent = "❌ 今日紀錄寫入失敗";
-        } else {
-            document.getElementById("submitStatus").textContent = "✅ 今日紀錄寫入成功";
-        }
-    } catch(err) {
-        showStatus("❌ 傳送錯誤：" + err);
-        document.getElementById("submitStatus").textContent = "❌ 今日紀錄傳送錯誤";
-    }
-    
-        if (!resp2.ok) {
-            document.getElementById("generateStatus").textContent = "❌ 半年資料寫入失敗：" + resp2.status;
-        } else {
-            document.getElementById("generateStatus").textContent = "✅ 半年資料寫入成功";
-        }
-    } catch(err) {
-        document.getElementById("generateStatus").textContent = "❌ 半年資料錯誤：" + err;
-    }
-    document.getElementById("loadingOverlay").style.display="none";
-
-
+async function checkServerData(){
+ updateDebug("🔎 查詢伺服器資料...");
+ try{
+  await findOrCreatePatient();
+  let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=5`);
+  let d=await r.json();
+  if(!d.entry){updateDebug("⚠ 無伺服器資料");return;}
+  updateDebug(`✅ 找到 ${d.entry.length} 筆資料`, JSON.stringify(d.entry[0].resource.code.text));
+ }catch(e){updateDebug("❌ 查詢錯誤",e);}
 }
-
-/*==============================
-  自動載入
-===============================*/
-async function autoLoad(){
-    showStatus("資料讀取中…");
-
-    await findOrCreatePatient();
-    renderCalendar();
-    await fillCal();
-    await loadMonthlyPain();
-
-    showStatus("資料已更新！");
-    
-        if (!resp.ok) {
-            showStatus("❌ 傳送失敗：" + resp.status);
-            document.getElementById("submitStatus").textContent = "❌ 今日紀錄寫入失敗";
-        } else {
-            document.getElementById("submitStatus").textContent = "✅ 今日紀錄寫入成功";
-        }
-    } catch(err) {
-        showStatus("❌ 傳送錯誤：" + err);
-        document.getElementById("submitStatus").textContent = "❌ 今日紀錄傳送錯誤";
-    }
-    
-        if (!resp2.ok) {
-            document.getElementById("generateStatus").textContent = "❌ 半年資料寫入失敗：" + resp2.status;
-        } else {
-            document.getElementById("generateStatus").textContent = "✅ 半年資料寫入成功";
-        }
-    } catch(err) {
-        document.getElementById("generateStatus").textContent = "❌ 半年資料錯誤：" + err;
-    }
-    document.getElementById("loadingOverlay").style.display="none";
-
-
-}
-
-autoLoad();
 </script>
 
-<!-- Loading Overlay -->
-<div id="loadingOverlay"
-style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
-background:rgba(0,0,0,0.5);color:white;font-size:32px;
-display:flex;align-items:center;justify-content:center;z-index:9999;">
-處理中…
-</div>
+<div id="loadingOverlay">處理中…</div>
 
 </body>
 </html>
