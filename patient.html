@@ -135,7 +135,7 @@ th,td {
 
 <button onclick="queryData()">查詢所有資料</button>
 
-<!-- ⭐ 新增：查詢回報區 -->
+<!-- ⭐查詢回報 -->
 <div id="queryStatus" style="margin-top:10px;font-weight:bold;color:#6d4b3a;"></div>
 
 <div id="tableBox"></div>
@@ -282,13 +282,13 @@ async function queryData() {
             ${rows}
         </table>`;
 
-    // 整理月份、週期、趨勢資料（原版不動）
-    let now = new Date();
-    let months = [];
-    for(let i=11;i>=0;i--){
-        let d2 = new Date(now.getFullYear(),now.getMonth()-i,1);
-        months.push(d2.toISOString().substring(0,7));
-    }
+    // ⭐⭐ 固定月份：1-12 月（完全不滾動）
+    let year = (new Date()).getFullYear();
+    let months = [
+        `${year}-01`, `${year}-02`, `${year}-03`, `${year}-04`,
+        `${year}-05`, `${year}-06`, `${year}-07`, `${year}-08`,
+        `${year}-09`, `${year}-10`, `${year}-11`, `${year}-12`
+    ];
 
     let flowMap={}, painMap={}, cycleStart=[];
 
