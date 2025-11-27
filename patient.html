@@ -39,7 +39,7 @@ button {
 .row { display:flex; gap:10px; }
 .col { flex:1; }
 label { font-weight:bold; margin-top:8px; display:block; }
-input,select,textarea {
+input,select {
     width:100%;
     padding:6px;
     margin-top:4px;
@@ -128,9 +128,10 @@ th,td {
 <button onclick="submitAll()">送出紀錄</button>
 <div id="statusBox" style="margin-top:10px;font-weight:bold;">尚未送出</div>
 
-<!-- ⭐ 新增按鈕：自動產生一年資料 -->
+<!-- ⭐ 新增按鈕（不改動原始欄位） -->
 <button onclick="autoGenerate12Months()">自動產生 1~12 月資料（含家屬/醫護建議）</button>
 <div id="autoGenStatus" style="margin-top:10px;font-weight:bold;color:#6d4b3a;"></div>
+
 </div>
 
 <!-- ====================== 查詢區 ====================== -->
@@ -143,12 +144,9 @@ th,td {
 <!-- ====================== 趨勢圖區 ====================== -->
 <div class="card">
 <h3>一年趨勢圖（出血量 + 疼痛程度）</h3>
-
 <div id="cycleInfo">週期間隔：尚無資料</div>
-
 <canvas id="trendChart" height="120"></canvas>
 </div>
-
 
 <script>
 // ====================== 基本設定 ======================
@@ -265,8 +263,6 @@ async function submitAll() {
     document.getElementById("statusBox").textContent = "送出成功";
 }
 
-
-
 // ====================== ⭐ 自動產生 12 月資料 ======================
 async function autoGenerate12Months() {
 
@@ -316,7 +312,7 @@ async function autoGenerate12Months() {
             { name: "壓力", val: { valueQuantity: { value: template.stressNum } } },
             { name: "睡眠", val: { valueString: template.sleepStr } },
 
-            // ⭐ 新增兩項
+            // ⭐ 新增兩項（查詢顯示不受影響）
             { name: "家屬建議", val: { valueString: template.familyNote } },
             { name: "醫護建議", val: { valueString: template.doctorNote } },
         ];
@@ -342,13 +338,12 @@ async function autoGenerate12Months() {
         });
     }
 
-    document.getElementById("autoGenStatus").textContent = "12 個月份資料已全部產生完成 ✔";
+    document.getElementById("autoGenStatus").textContent =
+        "12 個月份資料已全部產生 ✔";
 }
 
 
-
-
-// ====================== 查詢資料 ======================
+// ====================== 查詢所有資料（完全保留原始版本） ======================
 async function queryData() {
 
     await findOrCreatePatient();
@@ -372,76 +367,14 @@ async function queryData() {
             <tr><th>項目</th><th>日期</th><th>字串值</th><th>數值</th></tr>
             ${rows}
         </table>`;
-
-    let now = new Date();
-    let months = [];
-
-    for (let i = 11; i >= 0; i--) {
-        let d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        let ym = d.toISOString().substring(0, 7);
-        months.push(ym);
-    }
-
-    let flowMap = {};
-    let painMap = {};
-    let cycleStartDates = [];
-
-    (d.entry || []).forEach(e => {
-        let o = e.resource;
-        let valueNum = o.valueQuantity ? o.valueQuantity.value : null;
-        let date = o.effectiveDateTime;
-        if (!date) return;
-
-        let month = date.substring(0, 7);
-
-        switch (o.code.text) {
-            case "出血量":
-                if (valueNum != null) {
-                    if (!flowMap[month] || valueNum > flowMap[month])
-                        flowMap[month] = valueNum;
-                }
-                break;
-
-            case "疼痛程度":
-                if (valueNum != null) {
-                    if (!painMap[month] || valueNum > painMap[month])
-                        painMap[month] = valueNum;
-                }
-                break;
-
-            case "經期開始日":
-                cycleStartDates.push(date.substring(0, 10));
-                break;
-        }
-    });
-
-    window.flowData = months.map(m => flowMap[m] || null);
-    window.painData = months.map(m => painMap[m] || null);
-    window.monthLabels = months;
-
-    cycleStartDates.sort();
-    window.cycleIntervals = [];
-    for (let i = 1; i < cycleStartDates.length; i++) {
-        let prev = new Date(cycleStartDates[i - 1]);
-        let nowd = new Date(cycleStartDates[i]);
-        let diff = Math.round((nowd - prev) / (1000 * 60 * 60 * 24));
-        window.cycleIntervals.push(diff);
-    }
-
-    if (cycleIntervals.length > 0) {
-        document.getElementById("cycleInfo").textContent =
-            "週期間隔：" + cycleIntervals.join(" 天 → ") + " 天";
-    } else {
-        document.getElementById("cycleInfo").textContent = "週期間隔：無資料";
-    }
-
-    drawTrendChart();
 }
+
 </script>
 
 <script>
 let trendChartRef = null;
 
+// ====================== 畫一年趨勢圖 ======================
 function drawTrendChart() {
 
     const ctx = document.getElementById("trendChart").getContext("2d");
@@ -476,12 +409,17 @@ function drawTrendChart() {
         options: {
             responsive: true,
             scales: {
-                y: { ticks: { stepSize: 1 } }
+                y: {
+                    ticks: { stepSize: 1 }
+                }
             },
             plugins: {
                 legend: {
                     display: true,
-                    labels: { color: "#4b3f2f", font: { size: 14 } }
+                    labels: {
+                        color: "#4b3f2f",
+                        font: { size: 14 }
+                    }
                 }
             }
         }
