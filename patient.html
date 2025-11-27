@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站（病人版 V1）</title>
+<title>經期觀測站（病人版）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -32,6 +32,22 @@ th,td {border:1px solid #bda993;padding:6px;text-align:left;}
 </head>
 
 <body>
+
+<!-- ⭐⭐⭐ 新增：固定右上角的登出按鈕 ⭐⭐⭐ -->
+<button onclick="window.location.href='index.html'"
+        style="
+            position:fixed;
+            top:15px;
+            right:15px;
+            background:#888;
+            padding:8px 14px;
+            border-radius:8px;
+            font-size:14px;
+            color:white;
+            z-index:9999;
+        ">
+    登出
+</button>
 
 <h2 id="welcome"></h2>
 
@@ -251,7 +267,6 @@ async function deleteAll(){
 }
 
 /* ======================== 原本功能（未改動） ======================== */
-
 async function submitAll(){
     await findOrCreatePatient();
 
