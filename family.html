@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站（家屬版 V1）</title>
+<title>經期觀測站（家版 V1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -63,7 +63,7 @@ th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
 
 <!-- ======================== 疼痛圖 ======================== -->
 <div class="card hidden" id="chartCard">
-<h3>疼痛趨勢圖</h3>
+<h3>疼痛趨勢圖（24 個月）</h3>
 <canvas id="trendChart" height="120"></canvas>
 </div>
 
@@ -79,39 +79,39 @@ th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
 </div>
 
 <script>
-// =================== 基礎設定 ===================
+/* =================== 基礎設定 =================== */
 const server = "https://hapi.fhir.org/baseR4";
 let patientId = null;
-let selectedDate = null; // 家屬點選的日期
+let selectedDate = null;
 
-// =================== 查詢病人 ===================
+/* =================== 查詢病人 =================== */
 async function loadPatient(){
     const name = patientName.value.trim();
     if(!name){ alert("請輸入病人姓名"); return; }
 
     statusBox.textContent = "查詢中…";
 
-    // 找病人
     let r = await fetch(`${server}/Patient?name=${encodeURIComponent(name)}`);
     let d = await r.json();
+
     if(!d.entry){
         statusBox.textContent = "查無此病人";
         return;
     }
+
     patientId = d.entry[0].resource.id;
 
     statusBox.textContent = "已找到病人，載入資料中…";
 
     loadTable();
-    loadTrend();
+    loadTrend24();
 }
 
-// =================== 載入全部欄位表格 ===================
+/* =================== 載入整併表格 =================== */
 async function loadTable(){
-    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
     let d = await r.json();
 
-    // 日期合併
     let map={};
 
     (d.entry||[]).forEach(e=>{
@@ -127,7 +127,6 @@ async function loadTable(){
         };
     });
 
-    // 做表格
     let rows = Object.keys(map).sort().map(date=>{
         let v = map[date];
         return `
@@ -158,19 +157,15 @@ async function loadTable(){
     statusBox.textContent = "資料載入完成";
 }
 
-// =================== 開啟建議彈窗 ===================
+/* =================== 建議彈窗 =================== */
 function openAdvice(date){
     selectedDate = date;
-    popupTitle.textContent = `針對 ${date} 的家屬建議：`;
     adviceInput.value = "";
     popupOverlay.style.display = "flex";
+    popupTitle.textContent = `針對 ${date} 的家屬建議：`;
 }
+function closePopup(){ popupOverlay.style.display = "none"; }
 
-function closePopup(){
-    popupOverlay.style.display = "none";
-}
-
-// =================== 上傳家屬建議 ===================
 async function submitAdvice(){
     if(!adviceInput.value.trim()){
         alert("請輸入建議內容"); return;
@@ -196,9 +191,10 @@ async function submitAdvice(){
     alert("已送出家屬建議！");
 }
 
-// =================== 疼痛折線圖 ===================
-async function loadTrend(){
-    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
+/* =================== 24 個月疼痛趨勢圖 =================== */
+async function loadTrend24(){
+
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
     let d = await r.json();
 
     let painMap={};
@@ -212,24 +208,27 @@ async function loadTrend(){
             painMap[m] = o.valueQuantity.value;
     });
 
-    let year = (new Date()).getFullYear();
-    let labels=[
-        `${year}-01`,`${year}-02`,`${year}-03`,`${year}-04`,
-        `${year}-05`,`${year}-06`,`${year}-07`,`${year}-08`,
-        `${year}-09`,`${year}-10`,`${year}-11`,`${year}-12`
-    ];
+    let current = new Date();
+    let startYear = current.getFullYear();
+    let startMonth = current.getMonth();
+
+    let labels=[];
+    for(let i=0;i<24;i++){
+        let dd = new Date(startYear,startMonth+i,1);
+        labels.push(dd.toISOString().substring(0,7));
+    }
 
     let painData = labels.map(m=>painMap[m]||null);
 
     const ctx=document.getElementById("trendChart");
     if(window.trc) window.trc.destroy();
 
-    window.trc = new Chart(ctx,{
+    window.trc=new Chart(ctx,{
         type:"line",
         data:{
             labels:labels,
             datasets:[{
-                label:"疼痛程度",
+                label:"疼痛程度（24 個月）",
                 data:painData,
                 borderColor:"#6e9eca",
                 borderWidth:3,
@@ -242,6 +241,5 @@ async function loadTrend(){
     chartCard.classList.remove("hidden");
 }
 </script>
-
 </body>
 </html>
