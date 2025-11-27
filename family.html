@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站（家版 V1）</title>
+<title>經期觀測站（家屬版 V1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -42,6 +42,14 @@ th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
 
 <body>
 
+<!-- ⭐ 登出按鈕 -->
+<button onclick="window.location.href='index.html'"
+        style="position:fixed; top:15px; right:15px;
+               background:#888; padding:8px 14px;
+               border-radius:8px; font-size:14px; z-index:999;">
+    登出
+</button>
+
 <h2>經期觀測站（家屬版）</h2>
 
 <!-- ======================== 病人查詢 ======================== -->
@@ -79,12 +87,11 @@ th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
 </div>
 
 <script>
-/* =================== 基礎設定 =================== */
 const server = "https://hapi.fhir.org/baseR4";
 let patientId = null;
 let selectedDate = null;
 
-/* =================== 查詢病人 =================== */
+/* 查詢病人 */
 async function loadPatient(){
     const name = patientName.value.trim();
     if(!name){ alert("請輸入病人姓名"); return; }
@@ -100,23 +107,21 @@ async function loadPatient(){
     }
 
     patientId = d.entry[0].resource.id;
-
-    statusBox.textContent = "已找到病人，載入資料中…";
+    statusBox.textContent = "已找到病人，載入資料…";
 
     loadTable();
     loadTrend24();
 }
 
-/* =================== 載入整併表格 =================== */
+/* 載入整併表格 */
 async function loadTable(){
     let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
     let d = await r.json();
 
     let map={};
-
     (d.entry||[]).forEach(e=>{
         let o=e.resource;
-        let date = o.effectiveDateTime?.substring(0,10);
+        let date=o.effectiveDateTime?.substring(0,10);
         if(!date) return;
 
         if(!map[date]) map[date]={};
@@ -128,7 +133,7 @@ async function loadTable(){
     });
 
     let rows = Object.keys(map).sort().map(date=>{
-        let v = map[date];
+        let v=map[date];
         return `
         <tr>
             <td>${date}</td>
@@ -149,29 +154,26 @@ async function loadTable(){
                 <th>日期</th><th>出血量</th><th>疼痛</th><th>症狀</th>
                 <th>心情</th><th>壓力</th><th>睡眠</th>
                 <th>現有家屬建議</th><th>新增建議</th>
-            </tr>
-            ${rows}
+            </tr>${rows}
         </table>`;
 
     dataCard.classList.remove("hidden");
-    statusBox.textContent = "資料載入完成";
+    statusBox.textContent = "資料完成";
 }
 
-/* =================== 建議彈窗 =================== */
+/* 建議輸入視窗 */
 function openAdvice(date){
     selectedDate = date;
     adviceInput.value = "";
-    popupOverlay.style.display = "flex";
+    popupOverlay.style.display="flex";
     popupTitle.textContent = `針對 ${date} 的家屬建議：`;
 }
-function closePopup(){ popupOverlay.style.display = "none"; }
+function closePopup(){ popupOverlay.style.display="none"; }
 
 async function submitAdvice(){
     if(!adviceInput.value.trim()){
-        alert("請輸入建議內容"); return;
+        alert("請輸入內容"); return;
     }
-
-    const text = adviceInput.value.trim();
 
     await fetch(`${server}/Observation`,{
         method:"POST",
@@ -182,43 +184,41 @@ async function submitAdvice(){
             code:{text:"家屬建議"},
             subject:{reference:`Patient/${patientId}`},
             effectiveDateTime:selectedDate,
-            valueString:text
+            valueString:adviceInput.value.trim()
         })
     });
 
     closePopup();
     loadTable();
-    alert("已送出家屬建議！");
+    alert("已新增建議");
 }
 
-/* =================== 24 個月疼痛趨勢圖 =================== */
+/* 24 個月趨勢圖 */
 async function loadTrend24(){
-
     let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
     let d = await r.json();
 
     let painMap={};
-
     (d.entry||[]).forEach(e=>{
         let o=e.resource;
         let ds=o.effectiveDateTime;
         if(!ds) return;
         let m = ds.substring(0,7);
         if(o.code.text==="疼痛程度" && o.valueQuantity)
-            painMap[m] = o.valueQuantity.value;
+            painMap[m]=o.valueQuantity.value;
     });
 
-    let current = new Date();
-    let startYear = current.getFullYear();
-    let startMonth = current.getMonth();
+    let now=new Date();
+    let baseY=now.getFullYear();
+    let baseM=now.getMonth();
 
     let labels=[];
     for(let i=0;i<24;i++){
-        let dd = new Date(startYear,startMonth+i,1);
+        let dd=new Date(baseY,baseM+i,1);
         labels.push(dd.toISOString().substring(0,7));
     }
 
-    let painData = labels.map(m=>painMap[m]||null);
+    let painData=labels.map(m=>painMap[m]||null);
 
     const ctx=document.getElementById("trendChart");
     if(window.trc) window.trc.destroy();
@@ -241,5 +241,6 @@ async function loadTrend24(){
     chartCard.classList.remove("hidden");
 }
 </script>
+
 </body>
 </html>
