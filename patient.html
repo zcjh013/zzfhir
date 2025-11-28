@@ -97,7 +97,17 @@ th,td {border:1px solid #bda993;padding:6px;text-align:left;}
 <!-- ⭐ 新增刪除全部資料按鈕 -->
 <button onclick="deleteAll()">刪除所有資料（重設測試）</button>
 
+<!-- ⭐⭐⭐ 新增月經週期摘要按鈕 ⭐⭐⭐ -->
+<button onclick="showCycleSummary()">顯示月經週期摘要</button>
+
 <div id="queryStatus" style="font-weight:bold;margin-top:8px;"></div>
+
+<!-- 月經週期摘要顯示區 -->
+<div id="cycleSummaryBox" class="hidden" style="margin-top:15px;padding:15px;background:#fff7ef;border-radius:8px;border:2px solid #c19a6b;">
+    <h4 style="color:#6d4b3a;margin-top:0;">月經週期摘要</h4>
+    <div id="cycleStats" style="margin-bottom:15px;"></div>
+    <canvas id="cycleChart" height="150"></canvas>
+</div>
 
 <div id="rawTableBox"></div>
 <div id="fullTableBox" class="hidden"></div>
@@ -453,6 +463,124 @@ async function showTrend(){
 
     trendChart.classList.remove("hidden");
     document.getElementById("queryStatus").textContent="已顯示 24 個月趨勢圖";
+}
+
+/* ======================== 月經週期摘要 ======================== */
+async function showCycleSummary(){
+    document.getElementById("queryStatus").textContent="計算週期摘要中…";
+    
+    // 隱藏其他顯示區
+    rawTableBox.classList.add("hidden");
+    fullTableBox.classList.add("hidden");
+    trendChart.classList.add("hidden");
+    
+    await findOrCreatePatient();
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
+    let d = await r.json();
+    
+    // 收集經期開始日
+    let startDates = [];
+    
+    (d.entry||[]).forEach(e=>{
+        let o=e.resource;
+        if(o.code.text==="經期開始日" && o.valueDateTime){
+            startDates.push(o.valueDateTime.substring(0,10));
+        }
+    });
+    
+    if(startDates.length < 2){
+        alert("資料不足，至少需要兩筆經期記錄才能計算週期！");
+        return;
+    }
+    
+    // 排序日期
+    startDates.sort();
+    
+    // 計算週期間隔（天數）
+    let intervals = [];
+    for(let i = 1; i < startDates.length; i++){
+        let d1 = new Date(startDates[i-1]);
+        let d2 = new Date(startDates[i]);
+        let days = Math.round((d2 - d1) / (1000*60*60*24));
+        intervals.push(days);
+    }
+    
+    // 計算統計數據
+    let avgCycle = Math.round(intervals.reduce((a,b)=>a+b,0) / intervals.length);
+    let minCycle = Math.min(...intervals);
+    let maxCycle = Math.max(...intervals);
+    
+    // 判斷是否正常（21-35天為正常範圍）
+    let isNormal = avgCycle >= 21 && avgCycle <= 35;
+    let normalText = isNormal ? "✔ 正常" : "⚠ 建議諮詢醫生";
+    let normalColor = isNormal ? "#4a7c59" : "#c94c4c";
+    
+    // 顯示統計資訊
+    document.getElementById("cycleStats").innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="padding:10px;background:#fffbf5;border-radius:6px;">
+                <strong>平均週期：</strong>${avgCycle} 天
+            </div>
+            <div style="padding:10px;background:#fffbf5;border-radius:6px;">
+                <strong>記錄次數：</strong>${startDates.length} 次
+            </div>
+            <div style="padding:10px;background:#fffbf5;border-radius:6px;">
+                <strong>週期範圍：</strong>${minCycle} - ${maxCycle} 天
+            </div>
+            <div style="padding:10px;background:#fffbf5;border-radius:6px;color:${normalColor};">
+                <strong>狀態：</strong>${normalText}
+            </div>
+        </div>
+        <div style="margin-top:10px;padding:8px;background:#f5f1e8;border-radius:6px;font-size:14px;">
+            💡 正常月經週期範圍為 21-35 天，平均為 28 天左右
+        </div>
+    `;
+    
+    // 繪製週期間隔圖表
+    const ctx = document.getElementById("cycleChart");
+    if(window.cycleChartInstance) window.cycleChartInstance.destroy();
+    
+    // 準備圖表標籤（顯示週期編號）
+    let labels = intervals.map((_, i) => `週期 ${i+1}`);
+    
+    window.cycleChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "週期間隔（天數）",
+                data: intervals,
+                backgroundColor: intervals.map(v => 
+                    (v >= 21 && v <= 35) ? "rgba(74, 124, 89, 0.7)" : "rgba(201, 76, 76, 0.7)"
+                ),
+                borderColor: intervals.map(v => 
+                    (v >= 21 && v <= 35) ? "#4a7c59" : "#c94c4c"
+                ),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: "天數"
+                    }
+                }
+            }
+        }
+    });
+    
+    // 顯示摘要區
+    document.getElementById("cycleSummaryBox").classList.remove("hidden");
+    document.getElementById("queryStatus").textContent="月經週期摘要已顯示";
 }
 </script>
 
