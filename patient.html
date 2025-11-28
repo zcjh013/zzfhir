@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站（病人版 C 安全版）</title>
+<title>經期觀測站（病人版 V2）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -82,34 +82,28 @@ th,td {border:1px solid #bda993;padding:6px;text-align:left;}
 <button onclick="queryFull()">顯示全部欄位（合併資料）</button>
 <button onclick="showTrend()">顯示疼痛趨勢圖（24 個月）</button>
 
-<!-- ★★★ 新增：顯示月經週期圖按鈕（不動既有任何按鈕） -->
 <button onclick="showCycleTrend()">顯示月經週期圖（24 個月）</button>
 
 <button onclick="deleteAll()">刪除所有資料</button>
 
 <div id="queryStatus" style="font-weight:bold;margin-top:8px;"></div>
 
-<!-- ★★★ 新增的週期摘要卡片（預設隱藏） -->
 <div id="cycleSummary" class="summaryCard hidden"></div>
 
 <div id="rawTableBox"></div>
 <div id="fullTableBox" class="hidden"></div>
 
 <canvas id="trendChart" class="hidden" height="120"></canvas>
-
-<!-- ★★★ 新增的週期折線圖 canvas（預設隱藏） -->
 <canvas id="cycleChart" class="hidden" height="120"></canvas>
 
 </div>
 
-<!-- 第一段結束，接第二段 JS -->
 <script>
 const server = "https://hapi.fhir.org/baseR4";
 const userName = new URLSearchParams(location.search).get("name") || "訪客";
 document.getElementById("welcome").textContent = "經期觀測站（病人版） - " + userName;
 let patientId = null;
 
-// -------------------- Patient 查找（保留原本邏輯） --------------------
 async function findOrCreatePatient(){
     let r = await fetch(`${server}/Patient?name=${encodeURIComponent(userName)}`);
     let d = await r.json();
@@ -135,7 +129,6 @@ function obsCode(x){
     return { coding:[{system:"http://loinc.org",code:"TMP",display:x}], text:x };
 }
 
-// -------------------- 送出紀錄（保持原本邏輯，不變） --------------------
 async function submitAll(){
     await findOrCreatePatient();
     let dt = startDate.value;
@@ -182,7 +175,6 @@ async function submitAll(){
     statusBox.textContent="送出成功！";
 }
 
-// -------------------- 自動產生 24 個月資料（保留原樣） --------------------
 async function autoGenerate(){
     await findOrCreatePatient();
     statusBox.textContent = "產生中…";
@@ -235,24 +227,25 @@ async function autoGenerate(){
     statusBox.textContent="24 個月資料完成！";
 }
 
-// -------------------- 刪除資料（保留原樣） --------------------
 async function deleteAll(){
     await findOrCreatePatient();
 
-    statusBox.textContent="刪除中…";
-    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
+    if(!confirm("確定要刪除所有資料？此動作無法恢復！")) return;
+
+    queryStatus.textContent = "刪除中…（請稍候）";
+
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&code=TMP&_count=200`);
     let d = await r.json();
 
     if(d.entry){
-        for(const e of d.entry){
-            await fetch(`${server}/Observation/${e.resource.id}`,{method:"DELETE"});
-        }
+        await Promise.all(
+            d.entry.map(e => fetch(`${server}/Observation/${e.resource.id}`, { method:"DELETE" }))
+        );
     }
 
-    statusBox.textContent="全部刪除完成";
+    queryStatus.textContent = "全部刪除完成！";
 }
 
-// -------------------- 週期間隔運算（新增） --------------------
 function calcCycle(startDates){
     startDates.sort();
     let cycle=[];
@@ -267,7 +260,6 @@ function calcCycle(startDates){
     return cycle;
 }
 
-// -------------------- 生成摘要 HTML（新增） --------------------
 function makeSummary(cycle){
     if(cycle.length === 0){
         return "<b>週期摘要：</b> 無經期開始日資料";
@@ -290,7 +282,6 @@ function makeSummary(cycle){
     `;
 }
 
-// -------------------- 查詢原始資料（保留原樣） --------------------
 async function queryRaw(){
     queryStatus.textContent="查詢中…";
     cycleSummary.classList.add("hidden");
@@ -324,21 +315,20 @@ async function queryRaw(){
     queryStatus.textContent="查詢完成（原始資料）";
 }
 
-// -------------------- 查詢全部欄位（保留原樣，不修改你的欄位） --------------------
 async function queryFull(){
     queryStatus.textContent="查詢中…";
     rawTableBox.classList.add("hidden");
     trendChart.classList.add("hidden");
     cycleChart.classList.add("hidden");
 
-    cycleSummary.classList.add("hidden"); // 不在這裡顯示摘要
+    cycleSummary.classList.add("hidden");
 
     await findOrCreatePatient();
 
     let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=500`);
     let d = await r.json();
 
-    let map={}, startDates=[];
+    let map={};
 
     (d.entry||[]).forEach(e=>{
         let o=e.resource;
@@ -347,16 +337,11 @@ async function queryFull(){
 
         if(!map[date]) map[date]={};
 
-        if(o.code.text==="經期開始日")
-            startDates.push(date);
-
         map[date][o.code.text] = {
             s:o.valueString || "",
             n:o.valueQuantity?o.valueQuantity.value:""
         };
     });
-
-    // ★★★ 這裡不加入週期間隔欄位（你要求不更動原表格）
 
     let rows =
         Object.keys(map).sort().map(date=>{
@@ -389,7 +374,6 @@ async function queryFull(){
     queryStatus.textContent="查詢完成（合併資料）";
 }
 
-// -------------------- 疼痛折線圖（保留原樣） --------------------
 async function showTrend(){
     rawTableBox.classList.add("hidden");
     fullTableBox.classList.add("hidden");
@@ -442,7 +426,6 @@ async function showTrend(){
     queryStatus.textContent="已顯示疼痛趨勢圖（24 個月）";
 }
 
-// -------------------- ★ 新增：月經週期折線圖（安全版） --------------------
 async function showCycleTrend(){
     rawTableBox.classList.add("hidden");
     fullTableBox.classList.add("hidden");
@@ -464,11 +447,9 @@ async function showCycleTrend(){
 
     let cycle = calcCycle(startDates);
 
-    // 顯示摘要
     cycleSummary.innerHTML = makeSummary(cycle);
     cycleSummary.classList.remove("hidden");
 
-    // 24 個月固定
     let now = new Date();
     let labels=[];
     for(let i=0;i<24;i++){
