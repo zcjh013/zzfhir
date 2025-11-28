@@ -2,14 +2,16 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站（病版）</title>
+<title>經期觀測站（病人版）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
 body {background:#f3e9dd;font-family:Arial;color:#4b3f2f;margin:0;padding:20px;}
 h2 {text-align:center;color:#6d4b3a;margin-bottom:15px;}
 .card {background:#fffaf3;padding:18px;border-radius:12px;border-left:5px solid #c19a6b;margin-bottom:20px;}
-button {padding:10px 20px;background:#c9a37c;color:white;border:none;border-radius:8px;cursor:pointer;font-size:16px;margin-top:10px;}
+button {padding:10px 20px;background:#c9a37c;color:white;border:none;border-radius:8px;cursor:pointer;font-size:16px;}
+button:hover {opacity:0.9;}
 label {font-weight:bold;margin-top:6px;display:block;}
 input,select,textarea {width:100%;padding:6px;margin-top:4px;border-radius:6px;border:1px solid #d8c3a5;background:#fff7ef;}
 table {width:100%;border-collapse:collapse;margin-top:10px;}
@@ -17,15 +19,21 @@ th,td {border:1px solid #bda993;padding:6px;text-align:left;}
 .hidden {display:none;}
 .row {display:flex;gap:10px;}
 .col {flex:1;}
+.button-row {display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
 </style>
 </head>
+
 <body>
 
 <button onclick="window.location.href='index.html'"
-style="position:fixed;top:15px;right:15px;background:#888;padding:8px 14px;border-radius:8px;font-size:14px;color:white;z-index:9999;">登出</button>
+        style="position:fixed;top:15px;right:15px;background:#888;padding:8px 14px;
+               border-radius:8px;font-size:14px;color:white;z-index:9999;">
+    登出
+</button>
 
 <h2 id="welcome"></h2>
 
+<!-- ======================== 上傳區 ======================== -->
 <div class="card">
 <h3>上傳紀錄</h3>
 
@@ -43,24 +51,24 @@ style="position:fixed;top:15px;right:15px;background:#888;padding:8px 14px;borde
     <div class="col"><label>睡眠</label><select id="sleep"><option>好</option><option>普通</option><option>差</option></select></div>
 </div>
 
-<button onclick="submitAll()">送出紀錄</button>
+<button onclick="submitAll()" style="margin-top:10px;">送出紀錄</button>
 <div id="statusBox" style="margin-top:8px;font-weight:bold;">尚未送出資料</div>
 
-<button onclick="autoGenerate24Months()">自動產生 24 個月資料（含週期性疼痛）</button>
+<button onclick="autoGenerate24Months()" style="margin-top:15px;">自動產生 24 個月資料（含週期性疼痛）</button>
 <div id="autoGenStatus" style="margin-top:8px;font-weight:bold;color:#6d4b3a;"></div>
 </div>
 
+<!-- ======================== 查詢區 ======================== -->
 <div class="card">
 <h3>資料查詢</h3>
 
-<button onclick="queryRaw()">查詢所有資料（原始表格）</button>
-<button onclick="queryFull()">顯示全部欄位（合併版本）</button>
-<button onclick="showTrend()">顯示疼痛趨勢圖（24 個月）</button>
-
-<!-- ⭐ 新增按鈕（你一直看不到的按鈕） -->
-<button onclick="showCycle()" style="background:#a37c58;">顯示月經週期摘要</button>
-
-<button onclick="deleteAll()">刪除所有資料（重設測試）</button>
+<div class="button-row">
+    <button onclick="queryRaw()">查詢所有資料（原始表格）</button>
+    <button onclick="queryFull()">顯示全部欄位（合併版本）</button>
+    <button onclick="showTrend()">顯示疼痛趨勢圖（24 個月）</button>
+    <button onclick="showCycle()">顯示月經週期摘要</button>
+    <button onclick="deleteAll()">刪除所有資料（重設測試）</button>
+</div>
 
 <div id="queryStatus" style="font-weight:bold;margin-top:8px;"></div>
 
@@ -68,56 +76,69 @@ style="position:fixed;top:15px;right:15px;background:#888;padding:8px 14px;borde
 <div id="fullTableBox" class="hidden"></div>
 <canvas id="trendChart" class="hidden" height="120"></canvas>
 
-<!-- ⭐ 新增摘要顯示區 -->
 <div id="cycleBox" class="card hidden" style="margin-top:20px;"></div>
 </div>
 
 <script>
-const server="https://hapi.fhir.org/baseR4";
-const userName=new URLSearchParams(location.search).get("name")||"訪客";
-document.getElementById("welcome").textContent="經期觀測站（病人版） - "+userName;
-let patientId=null;
+/* ======================== 基本設定 ======================== */
+const server = "https://hapi.fhir.org/baseR4";
+const userName = new URLSearchParams(location.search).get("name") || "訪客";
+document.getElementById("welcome").textContent = "經期觀測站（病人版） - " + userName;
+let patientId = null;
 
 async function findOrCreatePatient(){
-    let r=await fetch(`${server}/Patient?name=${encodeURIComponent(userName)}`);
-    let d=await r.json();
-    if(d.entry){patientId=d.entry[0].resource.id;return patientId;}
-    let res=await fetch(`${server}/Patient`,{
+    let r = await fetch(`${server}/Patient?name=${encodeURIComponent(userName)}`);
+    let d = await r.json();
+    if(d.entry){
+        patientId = d.entry[0].resource.id;
+        return patientId;
+    }
+    let res = await fetch(`${server}/Patient`,{
         method:"POST",
-        headers:{"Content-Type":"application/fhir+json"},
+        headers:{ "Content-Type":"application/fhir+json" },
         body:JSON.stringify({
             resourceType:"Patient",
             name:[{text:userName}],
-            identifier:[{system:"http://example.org/user",value:userName}]
+            identifier:[{system:"http://example.org/user", value:userName}]
         })
     });
-    let x=await res.json();
-    patientId=x.id;
+    let x = await res.json();
+    patientId = x.id;
     return patientId;
 }
 
-function obsCode(txt){return {coding:[{system:"http://loinc.org",code:"TMP",display:txt}],text:txt};}
+function obsCode(txt){ 
+    return { coding:[{system:"http://loinc.org", code:"TMP", display:txt}], text:txt }; 
+}
 
+/* ======================== 送出紀錄 ======================== */
 async function submitAll(){
     await findOrCreatePatient();
-    let recordDate=startDate.value;
-    if(!recordDate){alert("請選擇經期開始日");return;}
-    statusBox.textContent="送出中…";
 
-    let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&date=${recordDate}`);
-    let d=await r.json();
-    let entries=[];
-    if(d.entry){d.entry.forEach(e=>entries.push({request:{method:"DELETE",url:`Observation/${e.resource.id}`}}));}
+    let recordDate = startDate.value;
+    if(!recordDate){ alert("請選擇經期開始日"); return; }
+
+    statusBox.textContent = "送出中…";
+
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&date=${recordDate}`);
+    let d = await r.json();
+    let entries = [];
+
+    if(d.entry){
+        d.entry.forEach(e=>{
+            entries.push({request:{method:"DELETE", url:`Observation/${e.resource.id}`}});
+        });
+    }
 
     let list=[
-        {name:"經期開始日",v:{valueDateTime:startDate.value}},
-        {name:"經期結束日",v:{valueDateTime:endDate.value}},
-        {name:"出血量",v:{valueString:flow.value}},
-        {name:"疼痛程度",v:{valueQuantity:{value:Number(pain.value)}}},
-        {name:"症狀",v:{valueString:symptoms.value}},
-        {name:"心情",v:{valueString:mood.value}},
-        {name:"壓力",v:{valueQuantity:{value:Number(stress.value)}}},
-        {name:"睡眠",v:{valueString:sleep.value}}
+        { name:"經期開始日", v:{valueDateTime:startDate.value}},
+        { name:"經期結束日", v:{valueDateTime:endDate.value}},
+        { name:"出血量",     v:{valueString:flow.value}},
+        { name:"疼痛程度",   v:{valueQuantity:{value:Number(pain.value)}}},
+        { name:"症狀",       v:{valueString:symptoms.value}},
+        { name:"心情",       v:{valueString:mood.value}},
+        { name:"壓力",       v:{valueQuantity:{value:Number(stress.value)}}},
+        { name:"睡眠",       v:{valueString:sleep.value}}
     ];
 
     list.forEach(o=>{
@@ -125,72 +146,92 @@ async function submitAll(){
             resource:{
                 resourceType:"Observation",
                 status:"final",
-                code:obsCode(o.name),
+                code: obsCode(o.name),
                 subject:{reference:`Patient/${patientId}`},
                 effectiveDateTime:recordDate,
                 ...o.v
             },
-            request:{method:"POST",url:"Observation"}
+            request:{method:"POST", url:"Observation"}
         });
     });
 
-    await fetch(server,{method:"POST",headers:{"Content-Type":"application/fhir+json"},body:JSON.stringify({resourceType:"Bundle",type:"transaction",entry:entries})});
-    statusBox.textContent="送出成功！";
+    await fetch(server,{
+        method:"POST",
+        headers:{ "Content-Type":"application/fhir+json" },
+        body:JSON.stringify({resourceType:"Bundle",type:"transaction",entry:entries})
+    });
+
+    statusBox.textContent = "送出成功！";
 }
 
+/* ======================== 月經週期摘要（強化不出錯版） ======================== */
 async function showCycle(){
     trendChart.classList.add("hidden");
     rawTableBox.classList.add("hidden");
     fullTableBox.classList.add("hidden");
 
     cycleBox.classList.add("hidden");
-    cycleBox.innerHTML="";
+    cycleBox.innerHTML = "";
 
     await findOrCreatePatient();
-    let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=2000`);
-    let d=await r.json();
-    let list=d.entry||[];
 
-    let cycles=[];
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=2000`);
+    let d = await r.json();
+    let list = d.entry || [];
+
+    let starts = {};
+    let ends = {};
+
     list.forEach(e=>{
-        let o=e.resource;
-        if(o.code.text==="經期開始日"){cycles.push({start:o.valueDateTime});}
-        if(o.code.text==="經期結束日"){
-            let c=cycles.find(x=>!x.end && x.start.substring(0,10)===o.effectiveDateTime.substring(0,10));
-            if(c)c.end=o.valueDateTime;
-        }
+        let o = e.resource;
+        if(!o.effectiveDateTime) return;
+        let date = o.effectiveDateTime.substring(0,10);
+
+        if(o.code.text === "經期開始日") starts[date] = date;
+        if(o.code.text === "經期結束日") ends[date] = date;
     });
 
-    cycles=cycles.filter(c=>c.start&&c.end).sort((a,b)=>a.start.localeCompare(b.start));
+    let cycles = [];
+    Object.keys(starts).sort().forEach(s=>{
+        let end = Object.keys(ends).find(e => e >= s);
+        if(end) cycles.push({ start:s, end:end });
+    });
 
-    if(cycles.length<2){
-        cycleBox.innerHTML="<b>可用資料不足，無法計算週期。</b>";
+    if(cycles.length < 2){
+        cycleBox.innerHTML = "<b>可用資料不足，無法計算週期。</b>";
         cycleBox.classList.remove("hidden");
         return;
     }
 
-    let intervals=[];
+    let intervals = [];
     for(let i=1;i<cycles.length;i++){
-        let d1=new Date(cycles[i-1].start);
-        let d2=new Date(cycles[i].start);
-        intervals.push(Math.round((d2-d1)/86400000));
+        let d1 = new Date(cycles[i-1].start);
+        let d2 = new Date(cycles[i].start);
+        let diff = Math.round((d2 - d1)/86400000);
+        if(!isNaN(diff) && diff > 0 && diff < 100) intervals.push(diff);
     }
 
-    let avg=intervals.reduce((a,b)=>a+b)/intervals.length;
-    let minv=Math.min(...intervals);
-    let maxv=Math.max(...intervals);
-    let variance=+(((maxv-minv)/2).toFixed(1));
-    let regular=(maxv-minv)<=3?"是（≤3 天）":"否（>3 天）";
+    if(intervals.length===0){
+        cycleBox.innerHTML="<b>資料異常，無法計算週期。</b>";
+        cycleBox.classList.remove("hidden");
+        return;
+    }
 
-    let last=cycles[cycles.length-1];
-    let nextDate="無法預估";
+    let avg = intervals.reduce((a,b)=>a+b)/intervals.length;
+    let minv = Math.min(...intervals);
+    let maxv = Math.max(...intervals);
+    let variance = +(((maxv-minv)/2).toFixed(1));
+    let regular = (maxv-minv)<=3?"是（≤3 天）":"否（> 3 天）";
+
+    let lastStart = cycles[cycles.length-1].start;
+    let nextDate = "無法預估";
     if(!isNaN(avg)){
-        let n=new Date(last.start);
-        n.setDate(n.getDate()+Math.round(avg));
-        nextDate=n.toISOString().substring(0,10);
+        let n = new Date(lastStart);
+        n.setDate(n.getDate() + Math.round(avg));
+        nextDate = n.toISOString().substring(0,10);
     }
 
-    cycleBox.innerHTML=`
+    cycleBox.innerHTML = `
         <h3>月經週期摘要</h3>
         <table>
             <tr><th>最近週期</th><td>${intervals.join(" → ")}</td></tr>
@@ -206,4 +247,5 @@ async function showCycle(){
 }
 </script>
 
-</body></html>
+</body>
+</html>
