@@ -2,42 +2,43 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站（醫護版）</title>
+<title>經期觀測站（醫護版 V1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js">
-/* ======================== 月經週期摘要（自動顯示） ======================== */
+/* ======================== 月經週期摘要 ======================== */
 async function showCycleSummary(){
-    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=2000`);
     let d = await r.json();
 
-    let startDates = [];
-    (d.entry||[]).forEach(e=>{
-        let o=e.resource;
-        if(o.code.text==="經期開始日" && o.valueDateTime){
-            startDates.push(o.valueDateTime.substring(0,10));
+    let starts = [];
+    (d.entry || []).forEach(e => {
+        let o = e.resource;
+        if (o.code.text === "經期開始日" && o.valueDateTime) {
+            starts.push(o.valueDateTime.substring(0,10));
         }
     });
 
-    if(startDates.length < 2){
-        document.getElementById("cycleStats").innerHTML = "<b>至少需要 2 筆經期開始資料才能計算週期。</b>";
-        document.getElementById("cycleSummaryCard").classList.remove("hidden");
+    if (starts.length < 2) {
+        cycleStats.innerHTML = "<b>資料不足：至少需要兩筆經期開始日。</b>";
+        cycleSummaryCard.classList.remove("hidden");
         return;
     }
 
-    startDates.sort();
-    let intervals=[];
-    for(let i=1;i<startDates.length;i++){
-        let d1=new Date(startDates[i-1]);
-        let d2=new Date(startDates[i]);
-        intervals.push(Math.round((d2-d1)/86400000));
+    starts.sort();
+
+    let intervals = [];
+    for (let i = 1; i < starts.length; i++) {
+        let d1 = new Date(starts[i-1]);
+        let d2 = new Date(starts[i]);
+        intervals.push(Math.round((d2 - d1) / 86400000));
     }
 
-    let avg = Math.round(intervals.reduce((a,b)=>a+b)/intervals.length);
+    let avg = Math.round(intervals.reduce((a,b)=>a+b) / intervals.length);
     let minv = Math.min(...intervals);
     let maxv = Math.max(...intervals);
-    let regular = (maxv-minv)<=3? "✔ 正常（差異 ≤ 3 天）" : "⚠ 較不規律（>3 天）";
+    let regular = (maxv - minv) <= 3 ? "✔ 規律（≤3 天）" : "⚠ 不規律（>3 天）";
 
-    document.getElementById("cycleStats").innerHTML = `
+    cycleStats.innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>平均週期：</strong>${avg} 天</div>
             <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>最短：</strong>${minv} 天</div>
@@ -46,28 +47,28 @@ async function showCycleSummary(){
         </div>
     `;
 
-    const ctx=document.getElementById("cycleChart");
+    const ctx = document.getElementById("cycleChart");
     if(window.cycleChartInstance) window.cycleChartInstance.destroy();
 
-    window.cycleChartInstance = new Chart(ctx,{
-        type:"bar",
-        data:{
-            labels: intervals.map((v,i)=>"週期 "+(i+1)),
-            datasets:[{
-                label:"週期天數",
-                data:intervals,
-                backgroundColor: intervals.map(v=> v>=21 && v<=35 ? "rgba(74,124,89,0.7)" : "rgba(201,76,76,0.7)"),
-                borderColor: intervals.map(v=> v>=21 && v<=35 ? "#4a7c59" : "#c94c4c"),
-                borderWidth:2
+    window.cycleChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: intervals.map((v,i)=> "週期 " + (i+1)),
+            datasets: [{
+                label: "週期天數",
+                data: intervals,
+                backgroundColor: intervals.map(v => v>=21 && v<=35 ? "rgba(74,124,89,0.7)" : "rgba(201,76,76,0.7)"),
+                borderColor: intervals.map(v => v>=21 && v<=35 ? "#4a7c59" : "#c94c4c"),
+                borderWidth: 2
             }]
         },
-        options:{
-            responsive:true,
-            scales:{y:{beginAtZero:true}}
+        options: {
+            responsive: true,
+            scales:{ y:{ beginAtZero:true } }
         }
     });
 
-    document.getElementById("cycleSummaryCard").classList.remove("hidden");
+    cycleSummaryCard.classList.remove("hidden");
 }
 
 </script>
@@ -139,6 +140,14 @@ th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
 <div class="card hidden" id="chartCard">
 <h3>疼痛趨勢圖（24 個月）</h3>
 <canvas id="trendChart" height="120"></canvas>
+</div>
+
+
+<!-- ======================== 月經週期摘要 ======================== -->
+<div class="card hidden" id="cycleSummaryCard">
+  <h3>月經週期摘要</h3>
+  <div id="cycleStats"></div>
+  <canvas id="cycleChart" height="120"></canvas>
 </div>
 
 <!-- ======================== 建議輸入彈出視窗 ======================== -->
@@ -305,39 +314,40 @@ async function loadTrend24(){
     chartCard.classList.remove("hidden");
 }
 
-/* ======================== 月經週期摘要（自動顯示） ======================== */
+/* ======================== 月經週期摘要 ======================== */
 async function showCycleSummary(){
-    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=2000`);
     let d = await r.json();
 
-    let startDates = [];
-    (d.entry||[]).forEach(e=>{
-        let o=e.resource;
-        if(o.code.text==="經期開始日" && o.valueDateTime){
-            startDates.push(o.valueDateTime.substring(0,10));
+    let starts = [];
+    (d.entry || []).forEach(e => {
+        let o = e.resource;
+        if (o.code.text === "經期開始日" && o.valueDateTime) {
+            starts.push(o.valueDateTime.substring(0,10));
         }
     });
 
-    if(startDates.length < 2){
-        document.getElementById("cycleStats").innerHTML = "<b>至少需要 2 筆經期開始資料才能計算週期。</b>";
-        document.getElementById("cycleSummaryCard").classList.remove("hidden");
+    if (starts.length < 2) {
+        cycleStats.innerHTML = "<b>資料不足：至少需要兩筆經期開始日。</b>";
+        cycleSummaryCard.classList.remove("hidden");
         return;
     }
 
-    startDates.sort();
-    let intervals=[];
-    for(let i=1;i<startDates.length;i++){
-        let d1=new Date(startDates[i-1]);
-        let d2=new Date(startDates[i]);
-        intervals.push(Math.round((d2-d1)/86400000));
+    starts.sort();
+
+    let intervals = [];
+    for (let i = 1; i < starts.length; i++) {
+        let d1 = new Date(starts[i-1]);
+        let d2 = new Date(starts[i]);
+        intervals.push(Math.round((d2 - d1) / 86400000));
     }
 
-    let avg = Math.round(intervals.reduce((a,b)=>a+b)/intervals.length);
+    let avg = Math.round(intervals.reduce((a,b)=>a+b) / intervals.length);
     let minv = Math.min(...intervals);
     let maxv = Math.max(...intervals);
-    let regular = (maxv-minv)<=3? "✔ 正常（差異 ≤ 3 天）" : "⚠ 較不規律（>3 天）";
+    let regular = (maxv - minv) <= 3 ? "✔ 規律（≤3 天）" : "⚠ 不規律（>3 天）";
 
-    document.getElementById("cycleStats").innerHTML = `
+    cycleStats.innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>平均週期：</strong>${avg} 天</div>
             <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>最短：</strong>${minv} 天</div>
@@ -346,28 +356,28 @@ async function showCycleSummary(){
         </div>
     `;
 
-    const ctx=document.getElementById("cycleChart");
+    const ctx = document.getElementById("cycleChart");
     if(window.cycleChartInstance) window.cycleChartInstance.destroy();
 
-    window.cycleChartInstance = new Chart(ctx,{
-        type:"bar",
-        data:{
-            labels: intervals.map((v,i)=>"週期 "+(i+1)),
-            datasets:[{
-                label:"週期天數",
-                data:intervals,
-                backgroundColor: intervals.map(v=> v>=21 && v<=35 ? "rgba(74,124,89,0.7)" : "rgba(201,76,76,0.7)"),
-                borderColor: intervals.map(v=> v>=21 && v<=35 ? "#4a7c59" : "#c94c4c"),
-                borderWidth:2
+    window.cycleChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: intervals.map((v,i)=> "週期 " + (i+1)),
+            datasets: [{
+                label: "週期天數",
+                data: intervals,
+                backgroundColor: intervals.map(v => v>=21 && v<=35 ? "rgba(74,124,89,0.7)" : "rgba(201,76,76,0.7)"),
+                borderColor: intervals.map(v => v>=21 && v<=35 ? "#4a7c59" : "#c94c4c"),
+                borderWidth: 2
             }]
         },
-        options:{
-            responsive:true,
-            scales:{y:{beginAtZero:true}}
+        options: {
+            responsive: true,
+            scales:{ y:{ beginAtZero:true } }
         }
     });
 
-    document.getElementById("cycleSummaryCard").classList.remove("hidden");
+    cycleSummaryCard.classList.remove("hidden");
 }
 
 </script>
