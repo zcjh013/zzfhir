@@ -1,817 +1,89 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>大健康 FHIR - 經期觀測站</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- React & ReactDOM -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <!-- Lucide React Icons -->
-    <script src="https://unpkg.com/lucide-react@0.263.1/dist/lucide-react.min.js"></script>
+<meta charset="utf-8">
+<title>大健康 FHIR 經期觀測站 - 登入</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <style>
-        /* Custom Font Imports */
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Playfair+Display:wght@700&display=swap');
-    </style>
+<style>
+body {
+    font-family: Arial;
+    background: #f3e9dd;
+    margin: 0; padding: 0;
+}
+.center-box {
+    width: 360px;
+    margin: 80px auto;
+    background: #fff8ef;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 5px 12px rgba(0,0,0,0.15);
+}
+h2 {
+    text-align:center;
+    color:#6d4b3a;
+    margin-top:0;
+}
+label { font-weight:bold; color:#4b3f2f; }
+select, input {
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    margin-bottom:15px;
+    border-radius:8px;
+    border:1px solid #c9b8a8;
+    background:#fff;
+}
+button {
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+    background:#c9a37c;
+    color:white;
+    font-size:16px;
+}
+button:hover {
+    background:#b08968;
+}
+</style>
 </head>
+
 <body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        // Access React and Icon libraries from global scope
-        const { useState, useEffect } = React;
-        const { 
-            User, Users, Activity, LogOut, Heart, Thermometer, 
-            Calendar, Phone, MapPin, ChevronDown, Plus, Save, 
-            FileText, Edit2, BarChart2, Trash2, List, Grid, Table 
-        } = window.LucideReact;
+<div class="center-box">
+    <h2>大健康 FHIR<br>經期觀測站</h2>
 
-        // --- Custom Styles for Morandi Theme (Injected via Style Tag Logic) ---
-        const morandiStyles = `
-          :root {
-            --color-sage: #5D7A73;
-            --color-terracotta: #D98880;
-            --color-mustard: #D4AC0D;
-            --color-cream: #FDFBF7;
-            --color-sand: #F2EFE9;
-            --color-charcoal: #4A4A4A;
-            --color-slate: #707B7C;
-          }
+    <label>選擇您的身份</label>
+    <select id="role">
+        <option value="patient">病人</option>
+        <option value="clinician">醫護</option>
+        <option value="family">家屬</option>
+    </select>
 
-          body {
-            background-color: var(--color-cream);
-            color: var(--color-charcoal);
-            font-family: 'Noto Sans TC', sans-serif;
-          }
+    <label>請輸入您的姓名</label>
+    <input id="nameInput" placeholder="例如：小美">
 
-          .font-serif {
-            font-family: 'Playfair Display', serif;
-          }
+    <button onclick="login()">登入</button>
+</div>
 
-          .bg-sage { background-color: var(--color-sage); }
-          .bg-terracotta { background-color: var(--color-terracotta); }
-          .bg-mustard { background-color: var(--color-mustard); }
-          .bg-sand { background-color: var(--color-sand); }
-          
-          .text-sage { color: var(--color-sage); }
-          .text-terracotta { color: var(--color-terracotta); }
-          .text-charcoal { color: var(--color-charcoal); }
+<script>
+function login() {
+    let role = document.getElementById("role").value;
+    let name = document.getElementById("nameInput").value.trim();
+    if (!name) {
+        alert("請輸入姓名！");
+        return;
+    }
 
-          /* Smooth inputs */
-          .morandi-input {
-            background-color: white;
-            border: 1px solid #E2E2E2;
-            border-radius: 6px;
-            padding: 0.75rem;
-            width: 100%;
-            color: var(--color-charcoal);
-            transition: all 0.3s ease;
-          }
-          .morandi-input:focus {
-            border-color: var(--color-sage);
-            box-shadow: 0 0 0 3px rgba(93, 122, 115, 0.1);
-            outline: none;
-          }
-          .morandi-label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 700;
-            color: var(--color-sage);
-            margin-bottom: 0.5rem;
-          }
+    if (role === "patient")
+        location.href = "patient.html?name=" + encodeURIComponent(name);
+    else if (role === "clinician")
+        location.href = "clinician.html?name=" + encodeURIComponent(name);
+    else
+        location.href = "family.html?name=" + encodeURIComponent(name);
+}
+</script>
 
-          /* Card Styles */
-          .morandi-card {
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-            border: 1px solid rgba(0,0,0,0.02);
-            overflow: hidden;
-          }
-          
-          .split-panel {
-            display: flex;
-            overflow: hidden;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-          }
-
-          /* Animation */
-          @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          .animate-fade-in {
-            animation: fadeIn 0.5s ease-out forwards;
-          }
-          
-          /* Range Slider Customization */
-          input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-          }
-          input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: var(--color-terracotta);
-            cursor: pointer;
-            margin-top: -6px;
-            box-shadow: 0 0 0 2px white;
-          }
-          input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #E2E2E2;
-            border-radius: 2px;
-          }
-        `;
-
-        // --- Initial Data State ---
-        const INITIAL_PATIENT = {
-          resourceType: "Patient",
-          id: "p001",
-          name: [{ use: "official", family: "陳", given: ["小明"] }],
-          gender: "male",
-          birthDate: "1985-04-20",
-          telecom: [{ system: "phone", value: "0912-345-678" }],
-          address: [{ text: "台北市信義區快樂路101號" }]
-        };
-
-        const INITIAL_RELATIVES = [
-          {
-            resourceType: "RelatedPerson",
-            id: "r001",
-            patient: { reference: "Patient/p001" },
-            relationship: [{ text: "母親" }],
-            name: [{ text: "陳林美華" }],
-            telecom: [{ system: "phone", value: "0988-777-666" }]
-          }
-        ];
-
-        const INITIAL_OBSERVATIONS = [
-          {
-            resourceType: "Observation",
-            id: "o001",
-            code: { text: "血壓" },
-            valueString: "120/80",
-            unit: "mmHg",
-            effectiveDateTime: "2023-10-25T09:00:00",
-            status: "final"
-          }
-        ];
-
-        const INITIAL_NOTE = {
-            resourceType: "DoctorNote",
-            id: "d001",
-            author: "Dr. Huang",
-            text: "病患主訴頭痛，建議多休息並補充水分。",
-            date: "2023-10-25"
-        };
-
-        // --- Components ---
-
-        const MorandiButton = ({ children, onClick, className = "", variant = "primary" }) => {
-          const baseStyle = "px-6 py-2.5 rounded-lg transition-all duration-300 shadow-sm font-medium tracking-wide flex items-center justify-center gap-2";
-          const variants = {
-            primary: "bg-sage text-white hover:bg-[#4d6660]",
-            secondary: "bg-terracotta text-white hover:bg-[#c07870]",
-            outline: "border border-sage text-sage hover:bg-sage hover:text-white",
-            mustard: "bg-mustard text-white hover:opacity-90",
-            sand: "bg-[#C2B280] text-white hover:opacity-90"
-          };
-          
-          return (
-            <button onClick={onClick} className={`${baseStyle} ${variants[variant]} ${className}`}>
-              {children}
-            </button>
-          );
-        };
-
-        const NumberBadge = ({ num }) => (
-          <div className="w-10 h-10 rounded-full bg-terracotta text-white flex items-center justify-center font-serif text-lg shadow-sm flex-shrink-0">
-            {num < 10 ? `0${num}` : num}
-          </div>
-        );
-
-        // --- Main Views ---
-
-        const LoginView = ({ onLogin }) => (
-          <div className="flex flex-col items-center justify-center min-h-screen p-4">
-            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row min-h-[500px]">
-              
-              {/* Left Panel */}
-              <div className="md:w-5/12 bg-terracotta p-12 flex flex-col justify-between text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-2 bg-mustard opacity-80"></div>
-                <div className="absolute bottom-12 left-0 w-16 h-1 bg-white opacity-50"></div>
-                
-                <div className="relative z-10">
-                  <div className="w-12 h-12 border-2 border-white rounded-full flex items-center justify-center mb-6">
-                    <Activity size={24} />
-                  </div>
-                  <h1 className="text-4xl font-serif font-bold mb-2 tracking-wider">大健康<br/>FHIR</h1>
-                  <div className="w-12 h-1 bg-mustard my-6"></div>
-                  <h2 className="text-2xl font-light tracking-widest opacity-90">經期觀測站</h2>
-                </div>
-
-                <div className="relative z-10 text-sm opacity-70 font-light mt-8">
-                  Personal Health Record System<br/>Based on FHIR Standard
-                </div>
-                <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-white opacity-5 rounded-full"></div>
-              </div>
-
-              {/* Right Panel */}
-              <div className="md:w-7/12 p-12 bg-white flex flex-col justify-center">
-                <h3 className="text-2xl text-sage font-bold mb-8 flex items-center gap-2">
-                  歡迎使用
-                  <span className="h-px flex-grow bg-gray-200 ml-4"></span>
-                </h3>
-
-                <div className="space-y-6">
-                  <div className="group">
-                    <label className="morandi-label">選擇您的身份</label>
-                    <div className="relative">
-                      <select className="morandi-input appearance-none cursor-pointer">
-                        <option value="patient">病患 (Patient)</option>
-                        <option value="relative">親屬 (Relative)</option>
-                        <option value="doctor">醫師 (Doctor)</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" size={18} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="morandi-label">輸入您的姓名</label>
-                    <input type="text" placeholder="例如：陳小美" className="morandi-input" />
-                  </div>
-
-                  <div className="pt-4">
-                    <MorandiButton onClick={onLogin} variant="secondary" className="w-full text-lg">
-                      登入系統
-                    </MorandiButton>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-8 text-gray-400 text-sm tracking-widest">© 2025 HEALTH CARE SYSTEM</div>
-          </div>
-        );
-
-        const PatientView = ({ data, setData }) => {
-          const [isRecordMode, setIsRecordMode] = useState(false);
-          
-          // Period Form State
-          const [periodForm, setPeriodForm] = useState({
-            startDate: '',
-            endDate: '',
-            flow: '少',
-            pain: 0,
-            symptoms: '',
-            mood: '平靜',
-            stress: 0,
-            sleep: '好'
-          });
-
-          const handlePeriodChange = (field, value) => {
-            setPeriodForm({ ...periodForm, [field]: value });
-          };
-
-          const handleAutoGenerate = () => {
-            alert("模擬功能：已自動生成24個月資料！");
-          };
-
-          const handleSubmitRecord = () => {
-            alert("紀錄已送出！");
-            setIsRecordMode(false);
-          };
-
-          return (
-            <div className="animate-fade-in space-y-8">
-              {/* View Mode: Profile Summary */}
-              {!isRecordMode ? (
-                <>
-                  <div className="split-panel bg-white min-h-[220px]">
-                    <div className="w-32 md:w-48 bg-terracotta flex items-center justify-center flex-shrink-0 relative">
-                       <div 
-                         className="absolute inset-0 bg-black opacity-0 hover:opacity-10 transition-opacity cursor-pointer flex items-center justify-center" 
-                         onClick={() => setIsRecordMode(true)}
-                       >
-                         <Edit2 className="text-white" />
-                         <span className="text-white ml-2 font-bold">紀錄經期</span>
-                       </div>
-                      <div className="text-center text-white">
-                        <div className="w-20 h-20 md:w-24 md:h-24 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
-                          <User size={40} />
-                        </div>
-                        <div className="font-serif text-xl tracking-widest">個人檔案</div>
-                      </div>
-                    </div>
-                    <div className="flex-grow p-8 flex flex-col justify-center relative">
-                       <button 
-                         onClick={() => setIsRecordMode(true)} 
-                         className="absolute top-6 right-6 bg-sage text-white px-4 py-2 rounded-full text-sm hover:bg-[#4d6660] transition-colors flex items-center gap-2 shadow-sm"
-                       >
-                         <Edit2 size={16} /> 新增紀錄
-                       </button>
-                      <h2 className="text-3xl font-bold text-charcoal mb-1">
-                        {data.name[0].family}{data.name[0].given}
-                      </h2>
-                      <div className="text-sage font-medium mb-6 flex items-center gap-2">
-                        <span>ID: {data.id}</span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-mustard"></span>
-                        <span>{data.gender === 'male' ? '男性' : '女性'}</span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-600 text-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-sand flex items-center justify-center text-sage"><Calendar size={14} /></div>
-                          <div><div className="text-xs text-gray-400">出生日期</div><div>{data.birthDate}</div></div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-sand flex items-center justify-center text-sage"><Phone size={14} /></div>
-                          <div><div className="text-xs text-gray-400">聯絡電話</div><div>{data.telecom[0].value}</div></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white p-6 rounded-lg border-l-4 border-mustard shadow-sm flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setIsRecordMode(true)}>
-                     <div>
-                        <div className="text-lg font-bold text-sage mb-1">點擊此處開始記錄您的生理週期</div>
-                        <div className="text-sm text-gray-400">追蹤疼痛、出血量與情緒變化</div>
-                     </div>
-                     <Calendar className="text-mustard" size={32} />
-                  </div>
-                </>
-              ) : (
-                // Record Mode
-                <div className="space-y-8 animate-fade-in">
-                  
-                  {/* Main Form Card */}
-                  <div className="morandi-card p-8">
-                    <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
-                       <h3 className="text-xl font-bold text-charcoal">上傳紀錄</h3>
-                       <button onClick={() => setIsRecordMode(false)} className="text-gray-400 hover:text-sage">取消</button>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                       {/* Row 1: Dates */}
-                       <div>
-                          <label className="morandi-label">經期開始日</label>
-                          <input 
-                            type="date"
-                            value={periodForm.startDate} 
-                            onChange={(e) => handlePeriodChange('startDate', e.target.value)}
-                            className="morandi-input" 
-                          />
-                       </div>
-                       <div>
-                          <label className="morandi-label">經期結束日</label>
-                          <input 
-                            type="date"
-                            value={periodForm.endDate} 
-                            onChange={(e) => handlePeriodChange('endDate', e.target.value)}
-                            className="morandi-input" 
-                          />
-                       </div>
-
-                       {/* Row 2: Flow & Pain */}
-                       <div>
-                          <label className="morandi-label">出血量</label>
-                          <select 
-                            value={periodForm.flow}
-                            onChange={(e) => handlePeriodChange('flow', e.target.value)}
-                            className="morandi-input"
-                          >
-                            <option value="少">少 (Light)</option>
-                            <option value="中">中 (Medium)</option>
-                            <option value="多">多 (Heavy)</option>
-                          </select>
-                       </div>
-                       <div>
-                          <label className="morandi-label">疼痛程度 (0~10): {periodForm.pain}</label>
-                          <div className="flex items-center gap-2 h-[46px]">
-                            <span className="text-xs text-gray-400">0</span>
-                            <input 
-                              type="range" 
-                              min="0" max="10" 
-                              value={periodForm.pain}
-                              onChange={(e) => handlePeriodChange('pain', e.target.value)}
-                              className="flex-grow"
-                            />
-                            <span className="text-xs text-gray-400">10</span>
-                          </div>
-                       </div>
-
-                       {/* Row 3: Symptoms & Mood */}
-                       <div>
-                          <label className="morandi-label">症狀</label>
-                          <input 
-                            type="text"
-                            placeholder="如: 頭痛, 腰痠..."
-                            value={periodForm.symptoms} 
-                            onChange={(e) => handlePeriodChange('symptoms', e.target.value)}
-                            className="morandi-input" 
-                          />
-                       </div>
-                       <div>
-                          <label className="morandi-label">心情</label>
-                          <select 
-                            value={periodForm.mood}
-                            onChange={(e) => handlePeriodChange('mood', e.target.value)}
-                            className="morandi-input"
-                          >
-                            <option value="平靜">平靜 (Calm)</option>
-                            <option value="開心">開心 (Happy)</option>
-                            <option value="煩躁">煩躁 (Irritable)</option>
-                            <option value="憂鬱">憂鬱 (Sad)</option>
-                            <option value="焦慮">焦慮 (Anxious)</option>
-                          </select>
-                       </div>
-
-                       {/* Row 4: Stress & Sleep */}
-                       <div>
-                          <label className="morandi-label">壓力 (0~10): {periodForm.stress}</label>
-                          <div className="flex items-center gap-2 h-[46px]">
-                            <span className="text-xs text-gray-400">0</span>
-                            <input 
-                              type="range" 
-                              min="0" max="10" 
-                              value={periodForm.stress}
-                              onChange={(e) => handlePeriodChange('stress', e.target.value)}
-                              className="flex-grow"
-                            />
-                            <span className="text-xs text-gray-400">10</span>
-                          </div>
-                       </div>
-                       <div>
-                          <label className="morandi-label">睡眠</label>
-                          <select 
-                            value={periodForm.sleep}
-                            onChange={(e) => handlePeriodChange('sleep', e.target.value)}
-                            className="morandi-input"
-                          >
-                            <option value="好">好 (Good)</option>
-                            <option value="普通">普通 (Average)</option>
-                            <option value="差">差 (Poor)</option>
-                          </select>
-                       </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                       <MorandiButton onClick={handleSubmitRecord} variant="secondary" className="w-full text-lg shadow-md">
-                         送出紀錄
-                       </MorandiButton>
-                       
-                       <div className="mt-4">
-                         <h4 className="text-sm font-bold text-gray-400 mb-2">尚未送出資料</h4>
-                         <MorandiButton onClick={handleAutoGenerate} variant="mustard" className="w-full">
-                           自動產生 24 個月資料（含週期性疼痛）
-                         </MorandiButton>
-                       </div>
-                    </div>
-                  </div>
-
-                  {/* Data Query Section */}
-                  <div className="mt-8">
-                     <h3 className="text-xl font-bold text-charcoal mb-4 pl-2 border-l-4 border-sage">資料查詢</h3>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <MorandiButton variant="sand" className="justify-start"><Table size={18} /> 查詢所有資料（原始表格）</MorandiButton>
-                        <MorandiButton variant="sand" className="justify-start"><Grid size={18} /> 顯示全部欄位（合併版本）</MorandiButton>
-                        <MorandiButton variant="sand" className="justify-start"><BarChart2 size={18} /> 顯示疼痛趨勢圖（24 個月）</MorandiButton>
-                        <MorandiButton variant="sand" className="justify-start"><Trash2 size={18} /> 刪除所有資料（重設測試）</MorandiButton>
-                        <MorandiButton variant="sand" className="justify-start"><List size={18} /> 顯示月經週期摘要</MorandiButton>
-                     </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        };
-
-        const RelativesView = ({ relatives, setRelatives }) => {
-          const [newRelative, setNewRelative] = useState({ name: '', relation: '', phone: '' });
-
-          const handleAdd = () => {
-            if (!newRelative.name) return;
-            const newItem = {
-              resourceType: "RelatedPerson",
-              id: `r${Date.now()}`,
-              patient: { reference: "Patient/p001" },
-              relationship: [{ text: newRelative.relation }],
-              name: [{ text: newRelative.name }],
-              telecom: [{ system: "phone", value: newRelative.phone }]
-            };
-            setRelatives([...relatives, newItem]);
-            setNewRelative({ name: '', relation: '', phone: '' });
-          };
-
-          return (
-            <div className="space-y-8 animate-fade-in">
-              <div className="grid grid-cols-1 gap-6">
-                {relatives.map((relative, index) => (
-                  <div key={relative.id} className="morandi-card p-6 flex items-center gap-6 group hover:shadow-md transition-shadow">
-                    <NumberBadge num={index + 1} />
-                    <div className="flex-grow">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <div className="text-xs text-terracotta font-bold tracking-wider mb-1 uppercase">{relative.relationship[0].text}</div>
-                          <h3 className="text-xl font-bold text-charcoal">{relative.name[0].text}</h3>
-                        </div>
-                        <div className="bg-sand px-3 py-1 rounded-full text-xs text-gray-500">Ref: {relative.patient.reference}</div>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-500 text-sm mt-2">
-                        <Phone size={14} />
-                        <span>{relative.telecom[0].value}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add Relative Form */}
-              <div className="morandi-card p-8 bg-sand/30 border-dashed border-2 border-sage/20">
-                <h3 className="text-lg font-bold text-sage mb-4 flex items-center gap-2">
-                  <Plus size={20} /> 新增親屬資料
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                     <label className="morandi-label">姓名</label>
-                     <input 
-                        className="morandi-input" 
-                        placeholder="親屬姓名"
-                        value={newRelative.name}
-                        onChange={(e) => setNewRelative({...newRelative, name: e.target.value})}
-                     />
-                  </div>
-                  <div>
-                     <label className="morandi-label">關係</label>
-                     <select 
-                        className="morandi-input"
-                        value={newRelative.relation}
-                        onChange={(e) => setNewRelative({...newRelative, relation: e.target.value})}
-                     >
-                        <option value="">請選擇</option>
-                        <option value="配偶">配偶</option>
-                        <option value="父母">父母</option>
-                        <option value="子女">子女</option>
-                        <option value="兄弟姊妹">兄弟姊妹</option>
-                        <option value="朋友">朋友</option>
-                     </select>
-                  </div>
-                  <div>
-                     <label className="morandi-label">電話</label>
-                     <input 
-                        className="morandi-input" 
-                        placeholder="聯絡電話"
-                        value={newRelative.phone}
-                        onChange={(e) => setNewRelative({...newRelative, phone: e.target.value})}
-                     />
-                  </div>
-                </div>
-                <div className="mt-6 flex justify-end">
-                   <MorandiButton onClick={handleAdd}>新增成員</MorandiButton>
-                </div>
-              </div>
-            </div>
-          );
-        };
-
-        const DoctorRecordView = ({ observations, setObservations, note, setNote }) => {
-          const [newObs, setNewObs] = useState({ type: '', value: '', unit: '' });
-          const [isEditingNote, setIsEditingNote] = useState(false);
-          const [tempNote, setTempNote] = useState(note.text);
-
-          const handleAddObs = () => {
-            if (!newObs.value) return;
-            const newItem = {
-              resourceType: "Observation",
-              id: `o${Date.now()}`,
-              code: { text: newObs.type },
-              valueString: newObs.value,
-              unit: newObs.unit,
-              effectiveDateTime: new Date().toISOString(),
-              status: "final"
-            };
-            setObservations([newItem, ...observations]);
-            setNewObs({ type: '', value: '', unit: '' });
-          };
-
-          const saveNote = () => {
-            setNote({ ...note, text: tempNote, date: new Date().toLocaleDateString() });
-            setIsEditingNote(false);
-          };
-
-          return (
-            <div className="space-y-6 animate-fade-in">
-              
-              {/* Input Section for Vitals */}
-              <div className="morandi-card p-6 bg-sage/5 border-sage/20">
-                 <h4 className="text-sm font-bold text-sage mb-4 uppercase tracking-wider">輸入生命徵象 (Vitals Entry)</h4>
-                 <div className="flex flex-col md:flex-row gap-4 items-end">
-                    <div className="flex-1 w-full">
-                       <label className="morandi-label">項目</label>
-                       <select 
-                         className="morandi-input"
-                         value={newObs.type}
-                         onChange={(e) => setNewObs({...newObs, type: e.target.value})}
-                       >
-                         <option value="">選擇測量項目</option>
-                         <option value="血壓">血壓 (Blood Pressure)</option>
-                         <option value="體溫">體溫 (Body Temperature)</option>
-                         <option value="心率">心率 (Heart Rate)</option>
-                         <option value="血糖">血糖 (Blood Glucose)</option>
-                       </select>
-                    </div>
-                    <div className="flex-1 w-full">
-                       <label className="morandi-label">數值</label>
-                       <input 
-                         className="morandi-input" 
-                         placeholder="例如: 120/80"
-                         value={newObs.value}
-                         onChange={(e) => setNewObs({...newObs, value: e.target.value})}
-                       />
-                    </div>
-                    <div className="w-24">
-                       <label className="morandi-label">單位</label>
-                       <input 
-                         className="morandi-input" 
-                         placeholder="mmHg"
-                         value={newObs.unit}
-                         onChange={(e) => setNewObs({...newObs, unit: e.target.value})}
-                       />
-                    </div>
-                    <MorandiButton onClick={handleAddObs} className="w-full md:w-auto">紀錄</MorandiButton>
-                 </div>
-              </div>
-
-              {/* Vitals Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {observations.map((obs, idx) => (
-                  <div key={obs.id} className="morandi-card p-6 relative overflow-hidden transition-all hover:-translate-y-1">
-                    <div className={`absolute top-0 left-0 w-1 h-full ${idx === 0 ? 'bg-sage' : 'bg-terracotta'}`}></div>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-gray-400 text-xs tracking-wider mb-2 uppercase">{obs.code.text}</div>
-                        <div className="flex items-baseline gap-2">
-                          <span className={`text-3xl font-bold ${idx === 0 ? 'text-sage' : 'text-terracotta'}`}>{obs.valueString}</span>
-                          <span className="text-sm text-gray-400">{obs.unit}</span>
-                        </div>
-                      </div>
-                      <div className={`p-2 rounded-full ${idx === 0 ? 'bg-sage/10 text-sage' : 'bg-terracotta/10 text-terracotta'}`}>
-                        {obs.code.text.includes("體溫") ? <Thermometer size={20} /> : <Heart size={20} />}
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between text-xs text-gray-400">
-                      <span>Status: {obs.status}</span>
-                      <span>{new Date(obs.effectiveDateTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Doctor Note Section */}
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden mt-6 border border-gray-100">
-                <div className="bg-sage px-6 py-4 flex justify-between items-center">
-                  <h3 className="text-white font-medium tracking-wide flex items-center gap-2">
-                     <FileText size={18} /> 醫師筆記 (Clinical Note)
-                  </h3>
-                  <span className="text-white/70 text-sm">{note.date}</span>
-                </div>
-                <div className="p-8">
-                  {!isEditingNote ? (
-                     <div className="flex gap-4 group cursor-pointer" onClick={() => setIsEditingNote(true)}>
-                        <div className="flex-shrink-0 mt-1">
-                           <div className="w-10 h-10 rounded-full bg-sand flex items-center justify-center text-sage font-serif font-bold">Dr</div>
-                        </div>
-                        <div className="flex-grow">
-                           <div className="flex justify-between">
-                              <div className="text-sm text-gray-400 mb-2">{note.author} 撰寫：</div>
-                              <Edit2 size={16} className="text-gray-300 group-hover:text-sage opacity-0 group-hover:opacity-100 transition-all" />
-                           </div>
-                           <p className="text-charcoal leading-relaxed whitespace-pre-line">{note.text}</p>
-                        </div>
-                     </div>
-                  ) : (
-                     <div className="animate-fade-in">
-                        <label className="morandi-label mb-2">編輯醫囑內容</label>
-                        <textarea 
-                          className="morandi-input h-32 resize-none"
-                          value={tempNote}
-                          onChange={(e) => setTempNote(e.target.value)}
-                        ></textarea>
-                        <div className="flex justify-end gap-3 mt-4">
-                           <MorandiButton variant="outline" onClick={() => setIsEditingNote(false)}>取消</MorandiButton>
-                           <MorandiButton onClick={saveNote}>更新紀錄</MorandiButton>
-                        </div>
-                     </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Raw Data Preview */}
-              <details className="text-xs text-gray-400 cursor-pointer mt-8">
-                <summary className="list-none hover:text-sage transition-colors text-center">View Raw FHIR Resource</summary>
-                <div className="mt-4 bg-sand/50 p-4 rounded-lg font-mono text-gray-500 overflow-x-auto">
-                  {JSON.stringify([...observations, note], null, 2)}
-                </div>
-              </details>
-            </div>
-          );
-        };
-
-        const App = () => {
-          const [isLoggedIn, setIsLoggedIn] = useState(false);
-          const [activeTab, setActiveTab] = useState('patient');
-          
-          // Lifted state to App level so data persists between tab switches
-          const [patientData, setPatientData] = useState(INITIAL_PATIENT);
-          const [relativesData, setRelativesData] = useState(INITIAL_RELATIVES);
-          const [observationsData, setObservationsData] = useState(INITIAL_OBSERVATIONS);
-          const [noteData, setNoteData] = useState(INITIAL_NOTE);
-
-          if (!isLoggedIn) {
-            return (
-              <>
-                <style>{morandiStyles}</style>
-                <LoginView onLogin={() => setIsLoggedIn(true)} />
-              </>
-            );
-          }
-
-          const renderContent = () => {
-            switch (activeTab) {
-              case 'patient': 
-                return <PatientView data={patientData} setData={setPatientData} />;
-              case 'relatives': 
-                return <RelativesView relatives={relativesData} setRelatives={setRelativesData} />;
-              case 'doctor': 
-                return <DoctorRecordView 
-                          observations={observationsData} 
-                          setObservations={setObservationsData}
-                          note={noteData}
-                          setNote={setNoteData}
-                       />;
-              default: return null;
-            }
-          };
-
-          return (
-            <div className="min-h-screen pb-12 transition-colors duration-500">
-              <style>{morandiStyles}</style>
-              
-              <header className="bg-sage text-white shadow-md sticky top-0 z-50">
-                <div className="container mx-auto px-4 h-16 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                     <div className="w-8 h-8 bg-white/20 rounded flex items-center justify-center"><Activity size={18} /></div>
-                     <div className="font-serif font-bold text-lg tracking-wide">FHIR <span className="font-sans font-light opacity-80 text-sm ml-1">Viewer</span></div>
-                  </div>
-                  <button onClick={() => setIsLoggedIn(false)} className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors">
-                    <span className="hidden md:inline">登出系統</span><LogOut size={18} />
-                  </button>
-                </div>
-              </header>
-
-              <main className="container mx-auto px-4 max-w-4xl mt-8">
-                <div className="flex border-b border-gray-200 mb-8 bg-white/50 backdrop-blur-sm rounded-t-lg px-4 pt-4 sticky top-16 z-40">
-                  {['patient', 'relatives', 'doctor'].map((tab) => (
-                     <button
-                       key={tab}
-                       onClick={() => setActiveTab(tab)}
-                       className={`pb-3 px-6 text-sm font-medium transition-all relative ${
-                         activeTab === tab ? 'text-sage' : 'text-gray-400 hover:text-gray-600'
-                       }`}
-                     >
-                       {tab === 'patient' ? '病患資料' : tab === 'relatives' ? '親屬關係' : '醫師紀錄'}
-                       {activeTab === tab && <span className="absolute bottom-0 left-0 w-full h-0.5 bg-sage"></span>}
-                     </button>
-                  ))}
-                </div>
-
-                <div className="min-h-[400px]">
-                  {renderContent()}
-                </div>
-              </main>
-            </div>
-          );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
 </body>
 </html>
-
