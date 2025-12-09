@@ -2,35 +2,79 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<title>經期觀測站（家屬版）</title>
+<title>經期觀測站（家屬版 V1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/chart.js">
+/* ======================== 月經週期摘要 ======================== */
+async function showCycleSummary(){
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=2000`);
+    let d = await r.json();
+
+    let starts = [];
+    (d.entry || []).forEach(e => {
+        let o = e.resource;
+        if (o.code.text === "經期開始日" && o.valueDateTime) {
+            starts.push(o.valueDateTime.substring(0,10));
+        }
+    });
+
+    if (starts.length < 2) {
+        cycleStats.innerHTML = "<b>資料不足：至少需要兩筆經期開始日。</b>";
+        cycleSummaryCard.classList.remove("hidden");
+        return;
+    }
+
+    starts.sort();
+
+    let intervals = [];
+    for (let i = 1; i < starts.length; i++) {
+        let d1 = new Date(starts[i-1]);
+        let d2 = new Date(starts[i]);
+        intervals.push(Math.round((d2 - d1) / 86400000));
+    }
+
+    let avg = Math.round(intervals.reduce((a,b)=>a+b) / intervals.length);
+    let minv = Math.min(...intervals);
+    let maxv = Math.max(...intervals);
+    let regular = (maxv - minv) <= 3 ? "✔ 規律（≤3 天）" : "⚠ 不規律（>3 天）";
+
+    cycleStats.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>平均週期：</strong>${avg} 天</div>
+            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>最短：</strong>${minv} 天</div>
+            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>最長：</strong>${maxv} 天</div>
+            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>規律度：</strong>${regular}</div>
+        </div>
+    `;
+
+    const ctx = document.getElementById("cycleChart");
+    if(window.cycleChartInstance) window.cycleChartInstance.destroy();
+
+    window.cycleChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: intervals.map((v,i)=> "週期 " + (i+1)),
+            datasets: [{
+                label: "週期天數",
+                data: intervals,
+                backgroundColor: intervals.map(v => v>=21 && v<=35 ? "rgba(74,124,89,0.7)" : "rgba(201,76,76,0.7)"),
+                borderColor: intervals.map(v => v>=21 && v<=35 ? "#4a7c59" : "#c94c4c"),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            scales:{ y:{ beginAtZero:true } }
+        }
+    });
+
+    cycleSummaryCard.classList.remove("hidden");
+}
+
+</script>
 
 <style>
-/* 🟩 新增：背景色改淡奶油 */
-body {
-    background:#FAF7F2;
-    font-family:Arial;
-    color:#333;
-    margin:0;
-    padding:20px;
-}
-
-/* 🟩 新增：深墨綠 Header */
-.top-header {
-    width:100%;
-    background:#5A6F68;
-    color:white;
-    padding:18px 28px;
-    box-sizing:border-box;
-}
-.top-header-title {
-    font-size:22px;
-    font-weight:bold;
-    line-height:1.2;
-    white-space:pre-line;
-}
-
-/* ⭐ 以下全部維持你的原樣（完全不動） */
+body {background:#eef2f3;font-family:Arial;color:#333;margin:0;padding:20px;}
 h2 {text-align:center;color:#4b3f2f;margin-bottom:15px;}
 .card {
     background:white;padding:18px;border-radius:12px;
@@ -61,24 +105,11 @@ th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
     background:white;padding:20px;border-radius:12px;width:80%;max-width:420px;
 }
 </style>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
-<!-- 🟩 新增深墨綠 Header -->
-<div class="top-header">
-    <div class="top-header-title">
-大健康
-FHIR
-經期觀測站
-    </div>
-</div>
-
-<!-- ⭐ 以下全部保持原本內容（未更動） -->
-
-<!-- 登出按鈕 -->
+<!-- ⭐ 登出按鈕 -->
 <button onclick="window.location.href='index.html'"
         style="position:fixed; top:15px; right:15px;
                background:#888; padding:8px 14px;
@@ -88,6 +119,7 @@ FHIR
 
 <h2>經期觀測站（家屬版）</h2>
 
+<!-- ======================== 病人查詢 ======================== -->
 <div class="card">
 <h3>查詢病人資料</h3>
 
@@ -98,23 +130,27 @@ FHIR
 <div id="statusBox" style="font-weight:bold;margin-top:10px;"></div>
 </div>
 
+<!-- ======================== 資料表格 ======================== -->
 <div class="card hidden" id="dataCard">
 <h3>完整欄位資料（依日期整併）</h3>
 <div id="tableBox"></div>
 </div>
 
+<!-- ======================== 疼痛圖 ======================== -->
 <div class="card hidden" id="chartCard">
 <h3>疼痛趨勢圖（24 個月）</h3>
 <canvas id="trendChart" height="120"></canvas>
 </div>
 
+
+<!-- ======================== 月經週期摘要 ======================== -->
 <div class="card hidden" id="cycleSummaryCard">
   <h3>月經週期摘要</h3>
   <div id="cycleStats"></div>
   <canvas id="cycleChart" height="120"></canvas>
 </div>
 
-<!-- 建議視窗 -->
+<!-- ======================== 建議輸入彈出視窗 ======================== -->
 <div id="popupOverlay">
   <div id="popup">
     <h3 id="popupTitle">輸入家屬建議</h3>
@@ -126,7 +162,227 @@ FHIR
 </div>
 
 <script>
-/* ⭐ 你原本的 JS 完全不動（保持原樣） */
+const server = "https://hapi.fhir.org/baseR4";
+let patientId = null;
+let selectedDate = null;
+
+/* 查詢病人 */
+async function loadPatient(){
+    const name = patientName.value.trim();
+    if(!name){ alert("請輸入病人姓名"); return; }
+
+    statusBox.textContent = "查詢中…";
+
+    let r = await fetch(`${server}/Patient?name=${encodeURIComponent(name)}`);
+    let d = await r.json();
+
+    if(!d.entry){
+        statusBox.textContent = "查無此病人";
+        return;
+    }
+
+    patientId = d.entry[0].resource.id;
+    statusBox.textContent = "已找到病人，載入資料…";
+
+    loadTable();
+    loadTrend24();
+    showCycleSummary();
+}
+
+/* 載入整併表格 */
+async function loadTable(){
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
+    let d = await r.json();
+
+    let map={};
+    (d.entry||[]).forEach(e=>{
+        let o=e.resource;
+        let date=o.effectiveDateTime?.substring(0,10);
+        if(!date) return;
+
+        if(!map[date]) map[date]={};
+
+        map[date][o.code.text] = {
+            s:o.valueString || "",
+            n:o.valueQuantity?o.valueQuantity.value:""
+        };
+    });
+
+    let rows = Object.keys(map).sort().map(date=>{
+        let v=map[date];
+        return `
+        <tr>
+            <td>${date}</td>
+            <td>${v["出血量"]?.s||""}</td>
+            <td>${v["疼痛程度"]?.n||""}</td>
+            <td>${v["症狀"]?.s||""}</td>
+            <td>${v["心情"]?.s||""}</td>
+            <td>${v["壓力"]?.n||""}</td>
+            <td>${v["睡眠"]?.s||""}</td>
+            <td>${v["家屬建議"]?.s||""}</td>
+            <td><button onclick="openAdvice('${date}')">輸入建議</button></td>
+        </tr>`;
+    }).join("");
+
+    tableBox.innerHTML =
+        `<table>
+            <tr>
+                <th>日期</th><th>出血量</th><th>疼痛</th><th>症狀</th>
+                <th>心情</th><th>壓力</th><th>睡眠</th>
+                <th>現有家屬建議</th><th>新增建議</th>
+            </tr>${rows}
+        </table>`;
+
+    dataCard.classList.remove("hidden");
+    statusBox.textContent = "資料完成";
+}
+
+/* 建議輸入視窗 */
+function openAdvice(date){
+    selectedDate = date;
+    adviceInput.value = "";
+    popupOverlay.style.display="flex";
+    popupTitle.textContent = `針對 ${date} 的家屬建議：`;
+}
+function closePopup(){ popupOverlay.style.display="none"; }
+
+async function submitAdvice(){
+    if(!adviceInput.value.trim()){
+        alert("請輸入內容"); return;
+    }
+
+    await fetch(`${server}/Observation`,{
+        method:"POST",
+        headers:{"Content-Type":"application/fhir+json"},
+        body:JSON.stringify({
+            resourceType:"Observation",
+            status:"final",
+            code:{text:"家屬建議"},
+            subject:{reference:`Patient/${patientId}`},
+            effectiveDateTime:selectedDate,
+            valueString:adviceInput.value.trim()
+        })
+    });
+
+    closePopup();
+    loadTable();
+    alert("已新增建議");
+}
+
+/* 24 個月趨勢圖 */
+async function loadTrend24(){
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
+    let d = await r.json();
+
+    let painMap={};
+    (d.entry||[]).forEach(e=>{
+        let o=e.resource;
+        let ds=o.effectiveDateTime;
+        if(!ds) return;
+        let m = ds.substring(0,7);
+        if(o.code.text==="疼痛程度" && o.valueQuantity)
+            painMap[m]=o.valueQuantity.value;
+    });
+
+    let now=new Date();
+    let baseY=now.getFullYear();
+    let baseM=now.getMonth();
+
+    let labels=[];
+    for(let i=0;i<24;i++){
+        let dd=new Date(baseY,baseM+i,1);
+        labels.push(dd.toISOString().substring(0,7));
+    }
+
+    let painData=labels.map(m=>painMap[m]||null);
+
+    const ctx=document.getElementById("trendChart");
+    if(window.trc) window.trc.destroy();
+
+    window.trc=new Chart(ctx,{
+        type:"line",
+        data:{
+            labels:labels,
+            datasets:[{
+                label:"疼痛程度（24 個月）",
+                data:painData,
+                borderColor:"#6e9eca",
+                borderWidth:3,
+                pointRadius:5,
+                tension:0.25
+            }]
+        }
+    });
+
+    chartCard.classList.remove("hidden");
+}
+
+/* ======================== 月經週期摘要 ======================== */
+async function showCycleSummary(){
+    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=2000`);
+    let d = await r.json();
+
+    let starts = [];
+    (d.entry || []).forEach(e => {
+        let o = e.resource;
+        if (o.code.text === "經期開始日" && o.valueDateTime) {
+            starts.push(o.valueDateTime.substring(0,10));
+        }
+    });
+
+    if (starts.length < 2) {
+        cycleStats.innerHTML = "<b>資料不足：至少需要兩筆經期開始日。</b>";
+        cycleSummaryCard.classList.remove("hidden");
+        return;
+    }
+
+    starts.sort();
+
+    let intervals = [];
+    for (let i = 1; i < starts.length; i++) {
+        let d1 = new Date(starts[i-1]);
+        let d2 = new Date(starts[i]);
+        intervals.push(Math.round((d2 - d1) / 86400000));
+    }
+
+    let avg = Math.round(intervals.reduce((a,b)=>a+b) / intervals.length);
+    let minv = Math.min(...intervals);
+    let maxv = Math.max(...intervals);
+    let regular = (maxv - minv) <= 3 ? "✔ 規律（≤3 天）" : "⚠ 不規律（>3 天）";
+
+    cycleStats.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>平均週期：</strong>${avg} 天</div>
+            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>最短：</strong>${minv} 天</div>
+            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>最長：</strong>${maxv} 天</div>
+            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>規律度：</strong>${regular}</div>
+        </div>
+    `;
+
+    const ctx = document.getElementById("cycleChart");
+    if(window.cycleChartInstance) window.cycleChartInstance.destroy();
+
+    window.cycleChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: intervals.map((v,i)=> "週期 " + (i+1)),
+            datasets: [{
+                label: "週期天數",
+                data: intervals,
+                backgroundColor: intervals.map(v => v>=21 && v<=35 ? "rgba(74,124,89,0.7)" : "rgba(201,76,76,0.7)"),
+                borderColor: intervals.map(v => v>=21 && v<=35 ? "#4a7c59" : "#c94c4c"),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            scales:{ y:{ beginAtZero:true } }
+        }
+    });
+
+    cycleSummaryCard.classList.remove("hidden");
+}
+
 </script>
 
 </body>
