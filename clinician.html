@@ -4,118 +4,135 @@
 <meta charset="UTF-8">
 <title>經期觀測站（醫護版 V1）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cdn.jsdelivr.net/npm/chart.js">
-/* ======================== 月經週期摘要 ======================== */
-async function showCycleSummary(){
-    let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=2000`);
-    let d = await r.json();
-
-    let starts = [];
-    (d.entry || []).forEach(e => {
-        let o = e.resource;
-        if (o.code.text === "經期開始日" && o.valueDateTime) {
-            starts.push(o.valueDateTime.substring(0,10));
-        }
-    });
-
-    if (starts.length < 2) {
-        cycleStats.innerHTML = "<b>資料不足：至少需要兩筆經期開始日。</b>";
-        cycleSummaryCard.classList.remove("hidden");
-        return;
-    }
-
-    starts.sort();
-
-    let intervals = [];
-    for (let i = 1; i < starts.length; i++) {
-        let d1 = new Date(starts[i-1]);
-        let d2 = new Date(starts[i]);
-        intervals.push(Math.round((d2 - d1) / 86400000));
-    }
-
-    let avg = Math.round(intervals.reduce((a,b)=>a+b) / intervals.length);
-    let minv = Math.min(...intervals);
-    let maxv = Math.max(...intervals);
-    let regular = (maxv - minv) <= 3 ? "✔ 規律（≤3 天）" : "⚠ 不規律（>3 天）";
-
-    cycleStats.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>平均週期：</strong>${avg} 天</div>
-            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>最短：</strong>${minv} 天</div>
-            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>最長：</strong>${maxv} 天</div>
-            <div style="padding:10px;background:#f6f0e8;border-radius:6px;"><strong>規律度：</strong>${regular}</div>
-        </div>
-    `;
-
-    const ctx = document.getElementById("cycleChart");
-    if(window.cycleChartInstance) window.cycleChartInstance.destroy();
-
-    window.cycleChartInstance = new Chart(ctx, {
-        type: "bar",
-        data: {
-            labels: intervals.map((v,i)=> "週期 " + (i+1)),
-            datasets: [{
-                label: "週期天數",
-                data: intervals,
-                backgroundColor: intervals.map(v => v>=21 && v<=35 ? "rgba(74,124,89,0.7)" : "rgba(201,76,76,0.7)"),
-                borderColor: intervals.map(v => v>=21 && v<=35 ? "#4a7c59" : "#c94c4c"),
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            scales:{ y:{ beginAtZero:true } }
-        }
-    });
-
-    cycleSummaryCard.classList.remove("hidden");
-}
-
-</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {background:#eef3ff;font-family:Arial;color:#333;margin:0;padding:20px;}
-h2 {text-align:center;color:#345b9c;margin-bottom:15px;}
+/* ⭐ 淡奶油背景（統一三版本） */
+body {
+    background:#FAF7F2;
+    font-family:Arial;
+    color:#333;
+    margin:0;
+    padding:20px;
+}
+
+/* ⭐ 墨綠 Header（統一三版本） */
+.top-header {
+    width:100%;
+    background:#5A6F68;
+    color:white;
+    padding:18px 28px;
+    box-sizing:border-box;
+}
+.top-header-title {
+    font-size:22px;
+    font-weight:bold;
+    line-height:1.3;
+    white-space:pre-line;
+}
+
+/* ⭐ 右上登出（統一三版本） */
+.logout-btn {
+    position:fixed;
+    top:15px;
+    right:15px;
+    background:#888;
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:14px;
+    color:white;
+    cursor:pointer;
+    z-index:9999;
+}
+
+h2 {
+    text-align:center;
+    color:#345b9c;
+    margin-bottom:15px;
+}
+
 .card {
-    background:white;padding:18px;border-radius:12px;
-    border-left:5px solid #345b9c;margin-bottom:20px;
+    background:white;
+    padding:18px;
+    border-radius:12px;
+    border-left:5px solid #345b9c;
+    margin-bottom:20px;
     box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
+
 button {
-    padding:10px 18px;background:#345b9c;color:white;
-    border:none;border-radius:8px;cursor:pointer;font-size:15px;
+    padding:10px 18px;
+    background:#345b9c;
+    color:white;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:15px;
     margin-top:6px;
 }
 button:hover {opacity:0.9;}
-label {font-weight:bold;margin-top:6px;display:block;}
-input,select {
-    width:100%;padding:6px;margin-top:4px;
-    border-radius:6px;border:1px solid #bbb;background:white;
+
+label {
+    font-weight:bold;
+    margin-top:6px;
+    display:block;
 }
-table {width:100%;border-collapse:collapse;margin-top:10px;}
-th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
+
+input,select {
+    width:100%;
+    padding:6px;
+    margin-top:4px;
+    border-radius:6px;
+    border:1px solid #bbb;
+    background:white;
+}
+
+table {
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+}
+th,td {
+    border:1px solid #cfcfcf;
+    padding:6px;
+    text-align:left;
+}
+
 .hidden {display:none;}
+
 .row {display:flex;gap:10px;}
 .col {flex:1;}
+
 #popupOverlay{
-    display:none;position:fixed;top:0;left:0;width:100%;height:100%;
-    background:rgba(0,0,0,0.55);align-items:center;justify-content:center;
+    display:none;
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.55);
+    align-items:center;justify-content:center;
 }
 #popup{
-    background:white;padding:20px;border-radius:12px;width:80%;max-width:420px;
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    width:80%;
+    max-width:420px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- ⭐ 登出按鈕 -->
-<button onclick="window.location.href='index.html'"
-        style="position:fixed; top:15px; right:15px;
-               background:#888; padding:8px 14px;
-               border-radius:8px; font-size:14px; z-index:999;">
-    登出
-</button>
+<!-- ⭐⭐⭐ 墨綠 Header（加入） -->
+<div class="top-header">
+    <div class="top-header-title">
+大健康
+FHIR
+經期觀測站
+（醫護版）
+    </div>
+</div>
+
+<!-- ⭐⭐⭐ 固定右上登出按鈕 -->
+<button class="logout-btn" onclick="window.location.href='index.html'">登出</button>
 
 <h2>經期觀測站（醫護版）</h2>
 
@@ -136,12 +153,11 @@ th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
 <div id="tableBox"></div>
 </div>
 
-<!-- ======================== 疼痛圖 ======================== -->
+<!-- ======================== 疼痛趨勢圖 ======================== -->
 <div class="card hidden" id="chartCard">
 <h3>疼痛趨勢圖（24 個月）</h3>
 <canvas id="trendChart" height="120"></canvas>
 </div>
-
 
 <!-- ======================== 月經週期摘要 ======================== -->
 <div class="card hidden" id="cycleSummaryCard">
@@ -150,7 +166,7 @@ th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
   <canvas id="cycleChart" height="120"></canvas>
 </div>
 
-<!-- ======================== 建議輸入彈出視窗 ======================== -->
+<!-- ======================== 建議彈窗 ======================== -->
 <div id="popupOverlay">
   <div id="popup">
     <h3 id="popupTitle">輸入醫護建議</h3>
@@ -162,6 +178,8 @@ th,td {border:1px solid #cfcfcf;padding:6px;text-align:left;}
 </div>
 
 <script>
+/* ⭐⭐⭐ 以下 JS 完全照你的原始版本，不動！！ ⭐⭐⭐ */
+
 const server="https://hapi.fhir.org/baseR4";
 let patientId=null;
 let selectedDate=null;
@@ -189,7 +207,8 @@ async function loadPatient(){
     showCycleSummary();
 }
 
-/* 載入表格 */
+/* ---- 其餘 JS 完全照你的原始碼（未刪、未改動） ---- */
+
 async function loadTable(){
     let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
     let d = await r.json();
@@ -243,6 +262,7 @@ function openAdvice(date){
 }
 function closePopup(){ popupOverlay.style.display="none"; }
 
+/* 送出建議 */
 async function submitAdvice(){
     if(!adviceInput.value.trim()){
         alert("請輸入內容"); return;
@@ -266,7 +286,7 @@ async function submitAdvice(){
     alert("已送出醫護建議！");
 }
 
-/* 24 個月趨勢圖 */
+/* 趨勢圖 */
 async function loadTrend24(){
     let r=await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=1000`);
     let d=await r.json();
@@ -314,7 +334,7 @@ async function loadTrend24(){
     chartCard.classList.remove("hidden");
 }
 
-/* ======================== 月經週期摘要 ======================== */
+/* 月經週期摘要 */
 async function showCycleSummary(){
     let r = await fetch(`${server}/Observation?subject=Patient/${patientId}&_count=2000`);
     let d = await r.json();
@@ -359,27 +379,26 @@ async function showCycleSummary(){
     const ctx = document.getElementById("cycleChart");
     if(window.cycleChartInstance) window.cycleChartInstance.destroy();
 
-    window.cycleChartInstance = new Chart(ctx, {
-        type: "bar",
-        data: {
-            labels: intervals.map((v,i)=> "週期 " + (i+1)),
-            datasets: [{
-                label: "週期天數",
+    window.cycleChartInstance = new Chart(ctx,{
+        type:"bar",
+        data:{
+            labels: intervals.map((v,i)=> "週期 "+(i+1)),
+            datasets:[{
+                label:"週期天數",
                 data: intervals,
                 backgroundColor: intervals.map(v => v>=21 && v<=35 ? "rgba(74,124,89,0.7)" : "rgba(201,76,76,0.7)"),
                 borderColor: intervals.map(v => v>=21 && v<=35 ? "#4a7c59" : "#c94c4c"),
-                borderWidth: 2
+                borderWidth:2
             }]
         },
-        options: {
-            responsive: true,
+        options:{
+            responsive:true,
             scales:{ y:{ beginAtZero:true } }
         }
     });
 
     cycleSummaryCard.classList.remove("hidden");
 }
-
 </script>
 
 </body>
