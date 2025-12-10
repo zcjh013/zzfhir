@@ -97,7 +97,6 @@ button {
 button:hover {
     background: #c67d72;
 }
-
 </style>
 </head>
 
@@ -121,14 +120,17 @@ button:hover {
         <h3>歡迎使用</h3>
 
         <label>選擇您的身份</label>
-        <select id="role">
+        <select id="role" onchange="toggleNameBox()">
             <option value="patient">病患 (Patient)</option>
-            <option value="clinician">醫護 (Clinician)</option>
             <option value="family">家屬 (Family)</option>
+            <option value="clinician">醫護 (Clinician)</option>
+            <option value="admin">管理者 (Admin)</option>
         </select>
 
-        <label>輸入您的姓名</label>
-        <input id="nameInput" placeholder="例如：陳小美">
+        <div id="nameBlock">
+            <label>輸入您的姓名 / 暱稱</label>
+            <input id="nameInput" placeholder="例如：陳小美 / 小菲">
+        </div>
 
         <button onclick="login()">登入系統</button>
     </div>
@@ -136,21 +138,35 @@ button:hover {
 </div>
 
 <script>
+function toggleNameBox() {
+    let role = document.getElementById("role").value;
+    let box = document.getElementById("nameBlock");
+
+    // Admin 不需輸入姓名
+    if (role === "admin") {
+        box.style.display = "none";
+    } else {
+        box.style.display = "block";
+    }
+}
+
 function login() {
     let role = document.getElementById("role").value;
     let name = document.getElementById("nameInput").value.trim();
 
-    if (!name) {
-        alert("請輸入姓名！");
+    if (role !== "admin" && !name) {
+        alert("請輸入姓名 / 暱稱！");
         return;
     }
 
     if (role === "patient")
         location.href = "patient.html?name=" + encodeURIComponent(name);
+    else if (role === "family")
+        location.href = "family.html?name=" + encodeURIComponent(name);
     else if (role === "clinician")
         location.href = "clinician.html?name=" + encodeURIComponent(name);
     else
-        location.href = "family.html?name=" + encodeURIComponent(name);
+        location.href = "admin.html";  // Admin 直接進入管理後台
 }
 </script>
 
