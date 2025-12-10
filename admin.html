@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>FHIR 組織建立工具（管理端）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body {
+    font-family: Arial;
+    background: #FAF7F2;
+    margin: 0;
+    padding: 20px;
+    color: #4b3f2f;
+}
+
+.top-header {
+    width: 100%;
+    background: #5A6F68;
+    color: white;
+    padding: 18px 28px;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+.card {
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    border-left: 5px solid #5A6F68;
+    margin-top: 20px;
+}
+
+button {
+    background: #5A6F68;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    margin-top: 6px;
+}
+
+#result {
+    margin-top: 12px;
+    font-size: 16px;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="top-header">FHIR 組織建立管理頁</div>
+
+<div class="card">
+    <h3>建立一個新的 Organization</h3>
+
+    <label>組織名稱（例如：東大門 PHR 中心）</label>
+    <input type="text" id="orgName">
+
+    <button onclick="createOrg()">建立組織</button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+const server = "https://hapi.fhir.org/baseR4"; // 固定 HAPI server
+
+async function createOrg() {
+    const name = orgName.value.trim();
+    if (!name) {
+        alert("請輸入組織名稱");
+        return;
+    }
+
+    document.getElementById("result").textContent = "建立中…";
+
+    const body = {
+        resourceType: "Organization",
+        name: name
+    };
+
+    let r = await fetch(`${server}/Organization`, {
+        method: "POST",
+        headers: {"Content-Type": "application/fhir+json"},
+        body: JSON.stringify(body)
+    });
+
+    let data = await r.json();
+
+    if (data.id) {
+        document.getElementById("result").innerHTML = `
+            ✔ 組織已建立！<br>
+            <b>組織名稱：</b> ${name}<br>
+            <b>FHIR Resource ID：</b> <span style="color:#5A6F68">${data.id}</span><br><br>
+            <a href="${server}/Organization/${data.id}" target="_blank">查看 FHIR 資源</a>
+        `;
+    } else {
+        document.getElementById("result").innerHTML =
+            `<span style="color:red">建立失敗：伺服器未回傳 ID</span>`;
+    }
+}
+</script>
+
+</body>
+</html>
