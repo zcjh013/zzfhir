@@ -97,6 +97,7 @@
         border: 1px solid #d8c8b6;
         margin-top: 10px;
     }
+
 </style>
 </head>
 
@@ -188,6 +189,20 @@ FHIR
 </div>
 
 <!-- ========================================================= -->
+<!-- Ⅵ. 查詢 FHIR 組織底下的病人名單 -->
+<!-- ========================================================= -->
+<div class="card">
+    <h3>Ⅵ. 查詢 FHIR 組織內的病人名單（PHR + EMR）</h3>
+
+    <label>Organization ID</label>
+    <input type="text" id="orgPatientQueryId">
+
+    <button onclick="queryPatientsByOrg()">查詢病人名單</button>
+
+    <div id="orgPatientsResult" style="margin-top:10px;"></div>
+</div>
+
+<!-- ========================================================= -->
 <!-- Ⅳ. 上傳 Vital Signs -->
 <!-- ========================================================= -->
 <div class="card">
@@ -244,11 +259,12 @@ FHIR
     </table>
 </div>
 
-</div><!-- container -->
+</div> <!-- container -->
 
 <!-- ========================================================= -->
-<!-- ⭐⭐⭐  JavaScript（完整可用） ⭐⭐⭐ -->
+<!-- JavaScript -->
 <!-- ========================================================= -->
+
 <script>
 const server = "https://hapi.fhir.org/baseR4";
 
@@ -279,9 +295,8 @@ function refreshLists(){
 refreshLists();
 
 /* ==========================================================
-   Ⅰ. 建立 or 加入 Organization
+   Ⅰ. 建立 Organization
 ========================================================== */
-
 async function createOrganization(){
     const name = orgName.value.trim();
     if(!name) return alert("請輸入組織名稱");
@@ -330,7 +345,7 @@ function addExistingOrg(){
 }
 
 /* ==========================================================
-   Ⅱ. 建立 PHR 病人（使用輸入的 Organization ID）
+   Ⅱ. 建立 PHR 病人
 ========================================================== */
 async function createPHRPatient(){
     const nickname = phrNickname.value.trim();
@@ -366,7 +381,7 @@ async function createPHRPatient(){
 }
 
 /* ==========================================================
-   Ⅲ. 建立 EMR 病人（使用輸入 Organization ID）
+   Ⅲ. 建立 EMR 病人
 ========================================================== */
 async function createEMRPatient(){
     const name = emrName.value.trim();
@@ -407,7 +422,36 @@ async function createEMRPatient(){
 }
 
 /* ==========================================================
-   Ⅳ. 上傳 Vital Signs（原樣）
+   Ⅵ. 查詢組織內病人名單
+========================================================== */
+async function queryPatientsByOrg() {
+    const orgId = orgPatientQueryId.value.trim();
+    if (!orgId) return alert("請輸入 Organization ID");
+
+    orgPatientsResult.textContent = "查詢中…";
+
+    let url = `${server}/Patient?organization=Organization/${orgId}&_count=200`;
+
+    let res = await fetch(url);
+    let data = await res.json();
+
+    if (!data.entry) {
+        orgPatientsResult.textContent = "查無病人資料";
+        return;
+    }
+
+    let html = data.entry.map(e => {
+        let p = e.resource;
+        let name = p.name?.[0]?.text || "(未命名)";
+        let pid = p.id;
+        return `• ${name}（Patient ID：${pid}）`;
+    }).join("<br>");
+
+    orgPatientsResult.innerHTML = `共 ${data.entry.length} 位病人：<br><br>${html}`;
+}
+
+/* ==========================================================
+   Ⅳ. 上傳 Vital Signs
 ========================================================== */
 function getVitalCode(type){
     if(type==="heart") return { code:"8867-4", unit:"bpm", display:"Heart Rate" };
@@ -444,7 +488,7 @@ async function uploadVital(){
 }
 
 /* ==========================================================
-   Ⅴ. 查詢 Vital Signs（原樣）
+   Ⅴ. 查詢 Vital Signs
 ========================================================== */
 function getQueryCode(type){
     if(type==="heart") return "8867-4";
@@ -490,6 +534,7 @@ async function queryVital(){
     queryTable.classList.remove("hidden");
     queryResult.textContent = `查詢完成，共 ${d.entry.length} 筆資料`;
 }
+
 </script>
 
 </body>
