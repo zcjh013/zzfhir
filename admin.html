@@ -5,15 +5,17 @@
 <title>大健康 FHIR 管理中心（Admin）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- 字型與風格一致 -->
 <style>
     body {
         margin: 0;
-        background: #FAF7F2;
+        background: #FAF7F2; /* 與病人頁一致的淡奶油色 */
         font-family: Arial, sans-serif;
         color: #4b3f2f;
         padding-bottom: 120px;
     }
 
+    /* ⭐ 上方墨綠 Header */
     .top-header {
         width: 100%;
         background: #5A6F68;
@@ -28,6 +30,7 @@
         white-space: pre-line;
     }
 
+    /* ⭐ 右上角登出按鈕 */
     .logout-btn {
         position: fixed;
         top: 15px;
@@ -41,6 +44,7 @@
         z-index: 9999;
     }
 
+    /* 主要容器 */
     .container {
         width: 95%;
         max-width: 1200px;
@@ -48,6 +52,7 @@
         margin-top: 20px;
     }
 
+    /* 卡片區域 */
     .card {
         background: #fffaf3;
         border-left: 5px solid #5A6F68;
@@ -57,8 +62,15 @@
         box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
-    h2 { text-align:center;color:#5A6F68; }
-    h3 { color:#5A6F68;margin-top:0; }
+    h2 {
+        text-align: center;
+        color: #5A6F68;
+    }
+
+    h3 {
+        color: #5A6F68;
+        margin-top: 0;
+    }
 
     label {
         font-weight: bold;
@@ -90,6 +102,21 @@
 
     button:hover { opacity: 0.9; }
 
+    /* 資料列表表格 */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+    }
+    th, td {
+        border: 1px solid #d2c1b0;
+        padding: 8px;
+        background: #fff;
+    }
+    th {
+        background: #e8ddd3;
+    }
+
     .list-box {
         background: #fff7ef;
         padding: 10px;
@@ -102,6 +129,7 @@
 
 <body>
 
+<!-- ⭐ Header -->
 <div class="top-header">
     <div class="top-header-title">
 大健康
@@ -110,6 +138,7 @@ FHIR
     </div>
 </div>
 
+<!-- ⭐ 登出 -->
 <button class="logout-btn" onclick="window.location.href='index.html'">登出</button>
 
 <div class="container">
@@ -117,37 +146,33 @@ FHIR
 <h2>FHIR Admin 後台</h2>
 
 <!-- ========================================================= -->
-<!-- Ⅰ. 建立或輸入 FHIR 組織 -->
+<!-- Ⅰ. 建立 FHIR 組織 -->
 <!-- ========================================================= -->
 <div class="card">
     <h3>Ⅰ. 建立 FHIR 組織（Organization）</h3>
 
-    <label>組織名稱（建立新組織）</label>
+    <label>組織名稱</label>
     <input type="text" id="orgName">
+
     <button onclick="createOrganization()">建立組織</button>
-
-    <hr style="margin:18px 0;">
-
-    <label>輸入現有 Organization ID（加入清單，不建立新組織）</label>
-    <input type="text" id="orgIdInput">
-    <button onclick="addExistingOrg()">加入組織 ID</button>
 
     <div id="orgResult" style="margin-top:10px;font-weight:bold;"></div>
 
-    <h4>已建立 / 已加入組織清單</h4>
+    <h4>已建立組織清單（localStorage）</h4>
     <div id="orgList" class="list-box"></div>
 </div>
+
 <!-- ========================================================= -->
 <!-- Ⅱ. 建立 PHR 病人（民眾端） -->
 <!-- ========================================================= -->
 <div class="card">
     <h3>Ⅱ. 建立 PHR 病人（民眾健康紀錄）</h3>
 
-    <label>暱稱（病人可辨識名稱）</label>
+    <label>暱稱</label>
     <input type="text" id="phrNickname">
 
-    <label>所屬組織 ID（Organization ID）</label>
-    <input type="text" id="phrOrgId">
+    <label>所屬組織（Organization）</label>
+    <select id="phrOrg"></select>
 
     <button onclick="createPHRPatient()">建立 PHR 病人</button>
 
@@ -158,12 +183,12 @@ FHIR
 </div>
 
 <!-- ========================================================= -->
-<!-- Ⅲ. 建立 EMR 病人（醫療端） -->
+<!-- Ⅲ. 建立 EMR 病人（醫院端） -->
 <!-- ========================================================= -->
 <div class="card">
-    <h3>Ⅲ. 建立 EMR 病人（醫院端病歷資料）</h3>
+    <h3>Ⅲ. 建立 EMR 病人（醫療端病歷資料）</h3>
 
-    <label>病人姓名</label>
+    <label>姓名</label>
     <input type="text" id="emrName">
 
     <label>性別</label>
@@ -175,8 +200,8 @@ FHIR
     <label>生日</label>
     <input type="date" id="emrBirth">
 
-    <label>所屬組織 ID（Organization ID）</label>
-    <input type="text" id="emrOrgId">
+    <label>所屬組織（Organization）</label>
+    <select id="emrOrg"></select>
 
     <button onclick="createEMRPatient()">建立 EMR 病人</button>
 
@@ -185,6 +210,7 @@ FHIR
     <h4>已建立 EMR 病人清單</h4>
     <div id="emrList" class="list-box"></div>
 </div>
+
 <!-- ========================================================= -->
 <!-- Ⅳ. 上傳生理監測（Vital Signs） -->
 <!-- ========================================================= -->
@@ -241,6 +267,9 @@ FHIR
         <tbody></tbody>
     </table>
 </div>
+
+</div><!-- container end -->
+<script>
 // =========================================
 // 🔧 FHIR Server
 // =========================================
@@ -264,29 +293,29 @@ function saveList(key, list) {
 }
 
 // =========================================
-// 📌 初始化清單
+// 📌 初始化（載入組織、病人下拉選單）
 // =========================================
 function refreshLists() {
     let orgs = loadList(KEY_ORG);
     let phrs = loadList(KEY_PHR);
     let emrs = loadList(KEY_EMR);
 
-    // 組織顯示
+    // 組織清單顯示
     orgList.innerHTML = orgs.length === 0
         ? "暫無資料"
         : orgs.map(o => `• ${o.name}（ID：${o.id}）`).join("<br>");
 
-    // PHR 顯示
+    // PHR 清單
     phrList.innerHTML = phrs.length === 0
         ? "暫無資料"
         : phrs.map(p => `• ${p.nickname}（Patient ID：${p.id}）`).join("<br>");
 
-    // EMR 顯示
+    // EMR 清單
     emrList.innerHTML = emrs.length === 0
         ? "暫無資料"
         : emrs.map(p => `• ${p.name}（Patient ID：${p.id}）`).join("<br>");
 
-    // 下拉式選單（保留）
+    // 下拉選單（PHR & EMR 都要用）
     phrOrg.innerHTML = orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join("");
     emrOrg.innerHTML = orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join("");
 }
@@ -294,11 +323,14 @@ function refreshLists() {
 refreshLists();
 
 // ==========================================================
-// Ⅰ. 建立 Organization
+// Ⅰ. 建立 Organization（FHIR Organization）
 // ==========================================================
 async function createOrganization() {
     const name = orgName.value.trim();
-    if (!name) return alert("請輸入組織名稱");
+    if (!name) {
+        alert("請輸入組織名稱");
+        return;
+    }
 
     orgResult.textContent = "建立中…";
 
@@ -307,7 +339,7 @@ async function createOrganization() {
         headers: { "Content-Type": "application/fhir+json" },
         body: JSON.stringify({
             resourceType: "Organization",
-            name
+            name: name
         })
     });
 
@@ -316,7 +348,7 @@ async function createOrganization() {
 
     orgResult.textContent = `成功建立！Organization ID：${orgId}`;
 
-    // 存 localStorage
+    // 存入 localStorage
     let list = loadList(KEY_ORG);
     list.push({ name, id: orgId });
     saveList(KEY_ORG, list);
@@ -326,17 +358,16 @@ async function createOrganization() {
 }
 
 // ==========================================================
-// Ⅱ. 建立 PHR 病人（加入：輸入 Organization ID）
+// Ⅱ. 建立 PHR 病人（民眾端）
 // ==========================================================
 async function createPHRPatient() {
     const nickname = phrNickname.value.trim();
-    const orgIdSelect = phrOrg.value;
-    const orgIdInput = phrOrgInput.value.trim();
+    const orgId = phrOrg.value;
 
-    const orgId = orgIdInput || orgIdSelect;
-
-    if (!nickname) return alert("請輸入暱稱");
-    if (!orgId) return alert("請輸入或選取組織 ID");
+    if (!nickname) {
+        alert("請輸入暱稱");
+        return;
+    }
 
     phrResult.textContent = "建立 PHR 病人中…";
 
@@ -355,30 +386,28 @@ async function createPHRPatient() {
 
     phrResult.textContent = `成功建立！Patient ID：${patientId}`;
 
-    // 存 localStorage
+    // 存入 localStorage
     let list = loadList(KEY_PHR);
     list.push({ nickname, id: patientId, org: orgId });
     saveList(KEY_PHR, list);
 
     refreshLists();
     phrNickname.value = "";
-    phrOrgInput.value = "";
 }
 
 // ==========================================================
-// Ⅲ. 建立 EMR 病人（加入：輸入 Organization ID）
+// Ⅲ. 建立 EMR 病人（醫院端）
 // ==========================================================
 async function createEMRPatient() {
     const name = emrName.value.trim();
     const gender = emrGender.value;
     const birth = emrBirth.value;
+    const orgId = emrOrg.value;
 
-    const orgIdSelect = emrOrg.value;
-    const orgIdInput = emrOrgInput.value.trim();
-    const orgId = orgIdInput || orgIdSelect;
-
-    if (!name || !birth) return alert("請輸入姓名與生日");
-    if (!orgId) return alert("請輸入或選取組織 ID");
+    if (!name || !birth) {
+        alert("請輸入姓名與生日");
+        return;
+    }
 
     emrResult.textContent = "建立 EMR 病人中…";
 
@@ -388,7 +417,7 @@ async function createEMRPatient() {
         body: JSON.stringify({
             resourceType: "Patient",
             name: [{ text: name }],
-            gender,
+            gender: gender,
             birthDate: birth,
             managingOrganization: { reference: `Organization/${orgId}` }
         })
@@ -399,7 +428,7 @@ async function createEMRPatient() {
 
     emrResult.textContent = `成功建立！Patient ID：${patientId}`;
 
-    // 存 localStorage
+    // 存入 localStorage
     let list = loadList(KEY_EMR);
     list.push({ name, id: patientId, org: orgId });
     saveList(KEY_EMR, list);
@@ -407,16 +436,15 @@ async function createEMRPatient() {
     refreshLists();
     emrName.value = "";
     emrBirth.value = "";
-    emrOrgInput.value = "";
 }
 
 // ==========================================================
-// Ⅳ. 上傳 Vital Signs（完全原樣）
+// Ⅳ. 上傳生理監測（Vital Signs）
 // ==========================================================
 function getVitalCode(type) {
     if (type === "heart") return { code: "8867-4", unit: "bpm", display: "Heart Rate" };
-    if (type === "spo2") return { code: "59408-5", unit: "%",   display: "SpO2" };
-    if (type === "temp") return { code: "8310-5", unit: "°C",   display: "Body Temperature" };
+    if (type === "spo2")  return { code: "59408-5", unit: "%",   display: "SpO2" };
+    if (type === "temp")  return { code: "8310-5", unit: "°C",   display: "Body Temperature" };
 }
 
 async function uploadVital() {
@@ -424,7 +452,10 @@ async function uploadVital() {
     const type = vsType.value;
     const value = Number(vsValue.value);
 
-    if (!patientId || !value) return alert("請輸入數值與 Patient ID");
+    if (!patientId || !value) {
+        alert("請輸入數值與 Patient ID");
+        return;
+    }
 
     const vital = getVitalCode(type);
 
@@ -436,25 +467,20 @@ async function uploadVital() {
         body: JSON.stringify({
             resourceType: "Observation",
             status: "final",
-            code: {
-                coding: [{
-                    system: "http://loinc.org",
-                    code: vital.code,
-                    display: vital.display
-                }]
-            },
+            code: { coding: [{ system: "http://loinc.org", code: vital.code, display: vital.display }] },
             subject: { reference: `Patient/${patientId}` },
             effectiveDateTime: new Date().toISOString(),
-            valueQuantity: { value, unit: vital.unit }
+            valueQuantity: { value: value, unit: vital.unit }
         })
     });
 
     let data = await res.json();
+
     vsResult.textContent = `上傳成功！Observation ID：${data.id}`;
 }
 
 // ==========================================================
-// Ⅴ. 查詢 Vital Signs（完全原樣）
+// Ⅴ. 查詢生理監測資料
 // ==========================================================
 function getQueryCode(type) {
     if (type === "heart") return "8867-4";
@@ -467,7 +493,10 @@ async function queryVital() {
     const type = queryType.value;
     const code = getQueryCode(type);
 
-    if (!patientId) return alert("請輸入 Patient ID");
+    if (!patientId) {
+        alert("請輸入 Patient ID");
+        return;
+    }
 
     queryResult.textContent = "查詢中…";
     queryTable.classList.add("hidden");
@@ -485,6 +514,7 @@ async function queryVital() {
 
     let rows = d.entry.map(e => {
         let o = e.resource;
+
         return `
         <tr>
             <td>${o.effectiveDateTime?.substring(0,10) || ""}</td>
@@ -498,3 +528,4 @@ async function queryVital() {
     queryTable.classList.remove("hidden");
     queryResult.textContent = `查詢完成，共 ${d.entry.length} 筆資料`;
 }
+</script>
